@@ -9178,6 +9178,9 @@ static void eventoTela(const SDL_Event *e) {
       return;
     }
     if (focoOp == AJ_SAIR) {
+      // Convidado (sem conta, e o app nao tem mais login): nao ha sessao para
+      // sair e `sair = 1` FECHARIA O APP. A linha fica inerte.
+      if (!sessao_logada()) return;
       // Sair apaga a sessao do disco. Chega aqui so no SEGUNDO OK (ver
       // pedeConfirmacao, acima): o primeiro arma e a linha diz o que o
       // proximo faz; qualquer movimento desarma (focar).

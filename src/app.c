@@ -3717,15 +3717,18 @@ int app_iniciar(const char *dirArte) {
   // O envio da atividade segue o nivel de privacidade (alcance) do Social: a
   // funcao e chamada agora e a cada mudanca; "nao perguntado" chega como 0.
   recomenda_ao_mudar_alcance(atividade_definir_permitido);
-  // Sem conta, o app abre no login. Com sessao gravada ele nem passa por ela —
-  // pedir o codigo de novo a cada arranque seria o mesmo que nao ter gravado.
+  // O APP ABRE NA HOME, com ou sem conta: nao existe mais tela de login. O
+  // CinemaBox e a unica fonte e o addon interno nao precisa de sessao.
 #ifdef NV_LINUX_DESKTOP
   if (uiPreview) {
     tela = TELA_HOME;
     printf("[linux] UI preview: no account sync or video playback\n");
   } else
 #endif
-  if (sessao_logada()) {
+  {
+    // SEM CONTA NAO HA TELA DE LOGIN (cliente so de CinemaBox). O caminho e o
+    // mesmo da sessao gravada: sem sessao o sync_iniciar sai cedo e a descoberta
+    // segue com o addon interno.
     tela = TELA_HOME;
     // Com sessao gravada o ciclo comeca no arranque: e ele que traz os addons
     // e o Trakt da pessoa, sem os quais a home mostra so o que veio no pacote.
@@ -3763,10 +3766,6 @@ int app_iniciar(const char *dirArte) {
       arranque_etapa("app_iniciar/perfilsel_continuar_ativo");
       perfilsel_continuar_ativo();
     }
-  } else {
-    tela = TELA_LOGIN;
-    arranque_etapa("app_iniciar/login_iniciar");
-    login_iniciar();
   }
   arranque_etapa("app_iniciar/fim");
   return 1;
@@ -4834,21 +4833,9 @@ void app_atualizar(float dt, Uint32 agora) {
     return;
   }
 
-  // Sessao perdida no meio do uso (renovacao recusada): voltar ao login e a
-  // unica saida honesta. Continuar na home mostraria o catalogo de exemplo do
-  // pacote como se fosse o da pessoa.
-  if (!sessao_logada()
-#ifdef NV_LINUX_DESKTOP
-      && !uiPreview
-#endif
-     ) {
-    perfilEncerrarSessao();
-    perfis_invalidar_sessao();
-    perfilSessaoAplicada = 0;
-    tela = TELA_LOGIN;
-    login_iniciar();
-    return;
-  }
+  // SEM CONTA NAO HA "SESSAO PERDIDA" para onde voltar: o app e so o
+  // CinemaBox e nao tem tela de login. Sem sessao, o resto do laco segue com as
+  // guardas `sessao_logada()` (sync, Trakt e social ficam desligados).
 
   // Recover every logged-in screen, including same-profile HTTP 401 renewal.
   // Only the drawing thread may install the profile's live state and sources.
