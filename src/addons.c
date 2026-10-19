@@ -509,11 +509,10 @@ static void esquecerSemTrava(void) {
   memset(addon, 0, sizeof addon);
   nAddon = 0;
   addons_marcar_da_conta(0);
-  listaMudou();
-  wsenvio_podar();   // lista vazia: nada do diario sobra para quem logou depois
   // A lista nunca fica vazia: o provedor interno e re-semeado no lugar.
   semearCinemaboxSemTrava();
   listaMudou();
+  wsenvio_podar();   // lista vazia: nada do diario sobra para quem logou depois
 }
 
 int addons_travar_lista(unsigned versao, int perfil) {
