@@ -172,7 +172,7 @@ static void cb_lista_textos(CbBuf *b, const char *chave, const char *ini,
     g = js_prox(q + 1);
     if (n >= 20) break;
   }
-  if (!n) { b->p[antes] = 0; b->n = antes; return; }
+  if (!n) { if (b->p) { b->p[antes] = 0; b->n = antes; } return; }
   cb_cru(b, "],");
 }
 
@@ -308,6 +308,7 @@ static char *cb_catalogo_busca(const char *tipo, const char *termo) {
   for (pagina = 1; pagina <= 3 && escritos < 75; pagina++) {
     char cam[900], *corpo;
     const char *r;
+    int nesta = 0;
     snprintf(cam, sizeof cam, "search?page_size=25&page_number=%d&term=%s", pagina, esc);
     corpo = cb_baixar(cam, 15);
     if (!corpo) break;
@@ -317,6 +318,7 @@ static char *cb_catalogo_busca(const char *tipo, const char *termo) {
       char tt[24] = "", titulo[200] = "", poster[1024] = "", ano[8] = "", id[24] = "";
       const char *estilo;
       long nid;
+      nesta++;
       if (*r != '{') continue;
       js_texto(r, f, "type", tt, sizeof tt);
       if (!cb_tipo(tt) || strcmp(cb_tipo(tt), tipo)) continue;
@@ -334,6 +336,8 @@ static char *cb_catalogo_busca(const char *tipo, const char *termo) {
       cb_item(&b, id, cb_tipo(tt), titulo, poster, NULL, NULL, NULL, ano, 0.0, NULL, NULL);
     }
     free(corpo);
+    // Pagina curta: nao ha proxima. Sem isto a busca fazia 3 GETs sempre.
+    if (nesta < 25) break;
   }
   cb_cru(&b, "]}");
   return b.p;
@@ -395,7 +399,6 @@ static char *cb_meta(const char *tipo, const char *id) {
   char titulo[200] = "", poster[1024] = "", logo[1024] = "", fundo[1024] = "",
        sinopse[900] = "", idade[16] = "", ano[8] = "";
   const char *tipoReal;
-  long epFilme = 0;
   int nVideos = 0, nEst = 0, i;
 
   snprintf(cam, sizeof cam, "shows/shows/dynamic/%ld", cb_id_numerico(id));
@@ -446,15 +449,14 @@ static char *cb_meta(const char *tipo, const char *id) {
   cb_lista_textos(&campos, "genres", pi, pif, "genres");
 
   if (!strcmp(tipoReal, "movie")) {
-    long player;
-    epFilme = (long)js_num(pi, pif, "episode_id", 0);
-    player = epFilme > 0 ? epFilme : cb_id_numerico(id);
     free(corpo);
+    // SEM videos: um filme com um "episodio" falso vira serie na tela do
+    // player (lista de episodios vazia). Quem toca o filme e o /stream, que
+    // resolve o episode_id no /shows/shows/dynamic.
     cb_cru(&saida, "{\"meta\":{");
     cb_bruto(&saida, campos.p ? campos.p : "", campos.n);
-    cb_cru(&saida, "\"videos\":[{\"id\":\"cb:");
-    { char pid[24]; snprintf(pid, sizeof pid, "%ld", player); cb_cru(&saida, pid); }
-    cb_cru(&saida, "\",\"season\":1,\"episode\":1}]}}");
+    cb_fecha(&saida);
+    cb_cru(&saida, "}");
     free(campos.p);
     return saida.p;
   }
@@ -548,6 +550,7 @@ static char *cb_stream(const char *tipo, const char *id) {
   // Filme: o id do catalogo e o show; quem toca e o episode_id dele.
   if (!strcmp(tipo, "movie")) {
     char *d;
+    int achou = 0;
     snprintf(cam, sizeof cam, "shows/shows/dynamic/%ld", player);
     d = cb_baixar(cam, 20);
     if (!d) return NULL;
@@ -556,9 +559,13 @@ static char *cb_stream(const char *tipo, const char *id) {
       if (pi) {
         const char *pif = js_fim(pi);
         long ep = (long)js_num(pi, pif && pif > pi ? pif : d + strlen(d), "episode_id", 0);
-        if (ep > 0) player = ep;
+        if (ep > 0) { player = ep; achou = 1; }
       } }
     free(d);
+    // Sem episode_id nao ha fonte: pedir o player pelo id do SHOW devolve
+    // outro titulo (conferido na API), e tocar o filme errado e pior que nao
+    // tocar.
+    if (!achou) return NULL;
   }
   snprintf(cam, sizeof cam, "shows/episodes/player/%ld", player);
   corpo = cb_baixar(cam, 20);

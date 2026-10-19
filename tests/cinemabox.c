@@ -118,7 +118,8 @@ int main(void) {
   assert(!strstr(r, "cb:28846"));
   free(r);
 
-  // Ficha de filme: campos do post_info + videos apontando para o player.
+  // Ficha de filme: campos do post_info; filme NAO declara videos (senao o
+  // player o trata como serie de um episodio so).
   r = pedir("cinemabox://cb/meta/movie/cb:28846.json", &nosso);
   assert(strstr(r, "\"id\":\"cb:28846\""));
   assert(strstr(r, "\"type\":\"movie\""));
@@ -126,7 +127,7 @@ int main(void) {
   assert(strstr(r, "\"imdbRating\":6.8"));
   assert(strstr(r, "\"runtime\":99"));
   assert(strstr(r, "\"genres\":[\"Drama\",\"Mystery\"]"));
-  assert(strstr(r, "\"id\":\"cb:584239\""));
+  assert(!strstr(r, "\"videos\""));
   free(r);
 
   // Ficha de serie: uma temporada por cartao, episodios com id de video de
