@@ -2176,6 +2176,12 @@ char *rede_baixar_com(const char *url, int segundos, const char *const *cab) {
 
 char *rede_baixar_st(const char *url, int segundos, const char *const *cab,
                      int *status) {
+  // Addon interno (cinemabox://): responde aqui tambem, e nao so no interno3,
+  // porque o caminho do Android (androidPrimeiro -> viaAndroid) monta a
+  // conexao sem passar por ele — era por onde a busca de legendas se perdia.
+  { int nosso = 0;
+    char *cb = cinemabox_responder(url, &nosso);
+    if (nosso) { if (status) *status = cb ? 200 : 0; return cb; } }
 #ifdef NV_ANDROID
   char *r;
   int st = 0;

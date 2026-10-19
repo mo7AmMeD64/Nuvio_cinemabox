@@ -30,7 +30,8 @@ static const char CB_MANIFESTO[] =
 "\"resources\":["
 "{\"name\":\"catalog\",\"types\":[\"movie\",\"series\"]},"
 "{\"name\":\"meta\",\"types\":[\"movie\",\"series\"],\"idPrefixes\":[\"cb:\"]},"
-"{\"name\":\"stream\",\"types\":[\"movie\",\"series\"],\"idPrefixes\":[\"cb:\"]}],"
+"{\"name\":\"stream\",\"types\":[\"movie\",\"series\"],\"idPrefixes\":[\"cb:\"]},"
+"{\"name\":\"subtitles\",\"types\":[\"movie\",\"series\"],\"idPrefixes\":[\"cb:\"]}],"
 "\"catalogs\":["
 "{\"type\":\"movie\",\"id\":\"144\",\"name\":\"Featured\"},"
 "{\"type\":\"movie\",\"id\":\"238\",\"name\":\"Weekly Trending\"},"
@@ -540,6 +541,26 @@ static char *cb_meta(const char *tipo, const char *id) {
 }
 
 // ---------------------------------------------------------------- fontes
+// Filme: o id do catalogo e o show; quem toca (e quem tem legenda) e o
+// episode_id dele. Pedir o player pelo id do SHOW devolve outro titulo
+// (conferido na API), entao sem episode_id nao ha nem fonte nem legenda.
+static long cb_episodio_do_show(long show) {
+  char cam[64], *d;
+  long ep = 0;
+  snprintf(cam, sizeof cam, "shows/shows/dynamic/%ld", show);
+  d = cb_baixar(cam, 20);
+  if (!d) return 0;
+  { const char *pi = strstr(d, "\"post_info\"");
+    pi = pi ? strchr(pi, '{') : NULL;
+    if (pi) {
+      const char *pif = js_fim(pi);
+      long e = (long)js_num(pi, pif && pif > pi ? pif : d + strlen(d), "episode_id", 0);
+      if (e > 0) ep = e;
+    } }
+  free(d);
+  return ep;
+}
+
 static char *cb_stream(const char *tipo, const char *id) {
   long player = cb_id_numerico(id);
   char cam[64], *corpo;
@@ -549,23 +570,8 @@ static char *cb_stream(const char *tipo, const char *id) {
   if (player <= 0) return NULL;
   // Filme: o id do catalogo e o show; quem toca e o episode_id dele.
   if (!strcmp(tipo, "movie")) {
-    char *d;
-    int achou = 0;
-    snprintf(cam, sizeof cam, "shows/shows/dynamic/%ld", player);
-    d = cb_baixar(cam, 20);
-    if (!d) return NULL;
-    { const char *pi = strstr(d, "\"post_info\"");
-      pi = pi ? strchr(pi, '{') : NULL;
-      if (pi) {
-        const char *pif = js_fim(pi);
-        long ep = (long)js_num(pi, pif && pif > pi ? pif : d + strlen(d), "episode_id", 0);
-        if (ep > 0) { player = ep; achou = 1; }
-      } }
-    free(d);
-    // Sem episode_id nao ha fonte: pedir o player pelo id do SHOW devolve
-    // outro titulo (conferido na API), e tocar o filme errado e pior que nao
-    // tocar.
-    if (!achou) return NULL;
+    player = cb_episodio_do_show(player);
+    if (player <= 0) return NULL;
   }
   snprintf(cam, sizeof cam, "shows/episodes/player/%ld", player);
   corpo = cb_baixar(cam, 20);
@@ -590,6 +596,52 @@ static char *cb_stream(const char *tipo, const char *id) {
     cb_cru(&b, "\",\"behaviorHints\":{\"proxyHeaders\":{\"request\":{\"User-Agent\":\"");
     cb_escapar(&b, CB_UA);
     cb_cru(&b, "\"}}},\"addonName\":\"CinemaBox\"}");
+    escritos++;
+  }
+  cb_cru(&b, "]}");
+  free(corpo);
+  return b.p;
+}
+
+// ---------------------------------------------------------------- legendas
+// /subtitles/<tipo>/<id>.json. O id de serie chega com o sufixo ":1" que
+// addons.c acrescenta ("cb:846133:1"); cb_id_numerico le so o numero, que ja e
+// o id do episodio na API. O /<extras>.json opcional cai fora na rota.
+static char *cb_legendas(const char *tipo, const char *id) {
+  long player = cb_id_numerico(id);
+  char cam[64], *corpo;
+  CbBuf b = {0};
+  const char *s;
+  int escritos = 0;
+  if (player <= 0) return NULL;
+  if (!strcmp(tipo, "movie")) {
+    player = cb_episodio_do_show(player);
+    if (player <= 0) return NULL;
+  }
+  snprintf(cam, sizeof cam, "shows/episodes/player/%ld", player);
+  corpo = cb_baixar(cam, 20);
+  if (!corpo) return NULL;
+  cb_cru(&b, "{\"subtitles\":[");
+  s = js_array(corpo, NULL, "subtitles");
+  for (; s; s = js_prox(js_fim(s))) {
+    const char *f = js_fim(s);
+    char url[1024] = "", lang[32] = "", sid[64];
+    if (*s != '{') continue;
+    // SRT primeiro: e o formato que o leitor do app (legenda.c) trata como
+    // principal; o VTT fica de reserva.
+    js_texto(s, f, "srt", url, sizeof url);
+    if (!url[0]) js_texto(s, f, "vtt", url, sizeof url);
+    js_texto(s, f, "language", lang, sizeof lang);
+    if (!url[0]) continue;
+    snprintf(sid, sizeof sid, "cb:%ld:%d", player, escritos);
+    if (escritos) cb_cru(&b, ",");
+    cb_cru(&b, "{\"id\":\"");
+    cb_escapar(&b, sid);
+    cb_cru(&b, "\",\"url\":\"");
+    cb_escapar(&b, url);
+    cb_cru(&b, "\",\"lang\":\"");
+    cb_escapar(&b, lang[0] ? lang : "ar");
+    cb_cru(&b, "\"}");
     escritos++;
   }
   cb_cru(&b, "]}");
@@ -640,6 +692,13 @@ char *cinemabox_responder(const char *url, int *nosso) {
       { char dec[300]; cb_url_decodar(termo, dec, sizeof dec); snprintf(termo, sizeof termo, "%s", dec); }
     }
     return cb_catalogo(tipo, id, termo);
+  }
+  if (!strncmp(alvo, "/subtitles/", 11)) {
+    cursor = alvo + 10;
+    if (!cb_seg(&cursor, tipo, sizeof tipo)) return NULL;
+    if (!cb_seg(&cursor, id, sizeof id)) return NULL;
+    { char *fim = strstr(id, ".json"); if (fim) *fim = 0; }
+    return cb_legendas(tipo, id);
   }
   if (!strncmp(alvo, "/meta/", 6) || !strncmp(alvo, "/stream/", 8)) {
     int ehMeta = alvo[1] == 'm';

@@ -59,7 +59,8 @@ char *rede_baixar(const char *url, int segundos) {
             "\"length\":2500}]}";
   else if (strstr(url, "shows/episodes/player/584239"))
     corpo =
-    "{\"subtitles\":[{\"vtt\":\"https://a/s.vtt\",\"language\":\"ar\"}],"
+    "{\"subtitles\":[{\"vtt\":\"https://a/s.vtt\",\"srt\":\"https://a/s.srt\","
+    "\"language\":\"ar\"}],"
     "\"videos\":[{\"url\":\"https://cdn/v1080.mp4\",\"quality\":\"1080p\"},"
     "{\"url\":\"https://cdn/v720.mp4\",\"quality\":\"720p\"}],\"id\":584239,"
     "\"show_id\":28846,\"show_type\":\"MOVIE\"}";
@@ -95,6 +96,8 @@ int main(void) {
   assert(strstr(r, "\"id\":\"search\""));
   assert(strstr(r, "\"isRequired\":true"));
   assert(strstr(r, "\"id\":\"144\""));
+  // Sem "subtitles" em resources o app nem pede legenda ao addon.
+  assert(strstr(r, "{\"name\":\"subtitles\""));
   free(r);
 
   // Fileira: cartao MOVIE vira cb:<id>; GENERO e descartado; poster obrigatorio.
@@ -152,6 +155,23 @@ int main(void) {
   r = pedir("cinemabox://cb/stream/movie/cb:28846.json", &nosso);
   assert(strstr(r, "\"url\":\"https://cdn/v1080.mp4\""));
   assert(strstr(r, "\"url\":\"https://cdn/v720.mp4\""));
+  free(r);
+
+  // Legendas de filme: o mesmo caminho show -> episode_id; SRT na frente do
+  // VTT (e o formato que legenda.c le como principal).
+  r = pedir("cinemabox://cb/subtitles/movie/cb:28846.json", &nosso);
+  assert(strstr(r, "\"subtitles\":["));
+  assert(strstr(r, "\"url\":\"https://a/s.srt\""));
+  assert(strstr(r, "\"lang\":\"ar\""));
+  assert(!strstr(r, "s.vtt"));
+  free(r);
+  // Serie: o sufixo ":1" que addons.c acrescenta ao id nao atrapalha.
+  r = pedir("cinemabox://cb/subtitles/series/cb:846133:1.json", &nosso);
+  assert(!strcmp(r, "{\"subtitles\":[]}"));
+  free(r);
+  // O caminho com extras (nome do arquivo) tambem responde.
+  r = pedir("cinemabox://cb/subtitles/movie/cb:28846/filme.2024.mkv.json", &nosso);
+  assert(strstr(r, "\"url\":\"https://a/s.srt\""));
   free(r);
 
   printf("cinemabox ok\n");
