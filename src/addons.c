@@ -1,4 +1,5 @@
 #include "addons.h"
+#include "cinemabox.h"
 #include "idbase.h"
 #include "idcanal.h"
 #include "idioma.h"
@@ -447,7 +448,7 @@ static void semearCinemaboxSemTrava(void) {
   addon[0].legenda = 1;
   addon[0].ativo = 1;
   snprintf(addon[0].nome, sizeof addon[0].nome, "%s", "CinemaBox");
-  snprintf(addon[0].base, sizeof addon[0].base, "%s", "cinemabox://cb");
+  snprintf(addon[0].base, sizeof addon[0].base, "%s", CINEMABOX_BASE);
 }
 
 static int carregarSemTrava(const char *dirArte) {
@@ -3426,12 +3427,11 @@ int addons_definir_lista(const AddonRemoto *nova, int n) {
   return r;
 }
 
+// CinemaBox e a UNICA fonte: a tela de addons nao instala mais nada. O addon
+// interno nasce em carregarSemTrava e nao passa por aqui.
 int addons_adicionar(const char *nome, const char *urlManifest) {
-  int r;
-  pthread_mutex_lock(&addonTrava);
-  r = adicionarSemTrava(nome, urlManifest);
-  pthread_mutex_unlock(&addonTrava);
-  return r;
+  (void)nome; (void)urlManifest; (void)adicionarSemTrava;
+  return 0;
 }
 
 int addons_alternar(int i) {
@@ -3439,6 +3439,10 @@ int addons_alternar(int i) {
   char base[NV_ADDON_URL_MAX] = "";
   pthread_mutex_lock(&addonTrava);
   if (i >= 0 && i < nAddon) snprintf(base, sizeof base, "%s", addon[i].base);
+  if (!strcmp(base, CINEMABOX_BASE)) {   // desligar a unica fonte = tela vazia
+    pthread_mutex_unlock(&addonTrava);
+    return 1;
+  }
   r = alternarSemTrava(i);
   pthread_mutex_unlock(&addonTrava);
   if (base[0]) sync_sujar_addons(base);

@@ -12,6 +12,9 @@
 #ifndef NV_CINEMABOX_H
 #define NV_CINEMABOX_H
 
+// Base do unico addon do app (semeado em addons.c, respondido em rede.c).
+#define CINEMABOX_BASE "cinemabox://cb"
+
 // Responde um pedido "cinemabox://". *nosso recebe 1 quando a URL e deste
 // provedor (mesmo sem resposta): a rede NAO deve tentar baixa-la. Devolve corpo
 // em memoria nova (free), ou NULL quando o pedido falhou. *nosso=0: nao e nosso,

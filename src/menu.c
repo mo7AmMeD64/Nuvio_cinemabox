@@ -141,9 +141,10 @@ static const char *ROTULOS[MENU_N] = { "Início", "Explorar", "Guia TV", "Busca"
 static int mostra(int i) {
   switch (i) {
     case MENU_EXPLORAR: return ajustes_menu_explorar();
-    case MENU_GUIA:     return ajustes_menu_guia();
+    // Cliente so de VOD CinemaBox: sem TV ao vivo e sem conta/social.
+    case MENU_GUIA:     return 0;
     case MENU_AGENDA:   return ajustes_menu_agenda();
-    case MENU_PERFIL:   return ajustes_menu_perfil();
+    case MENU_PERFIL:   return 0;
     default:            return 1;
   }
 }
