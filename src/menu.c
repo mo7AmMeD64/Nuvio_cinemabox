@@ -143,7 +143,7 @@ static int mostra(int i) {
     case MENU_EXPLORAR: return ajustes_menu_explorar();
     // Cliente so de VOD CinemaBox: sem TV ao vivo e sem conta/social.
     case MENU_GUIA:     return 0;
-    case MENU_AGENDA:   return ajustes_menu_agenda();
+    case MENU_AGENDA:   return 0;
     case MENU_PERFIL:   return 0;
     default:            return 1;
   }
@@ -153,22 +153,15 @@ static int visiveis(void) {
   for (i = 0; i < MENU_N; i++) n += mostra(i);
   return n;
 }
-// RODAPE: quem esta usando o app, e a porta para trocar. Ele e um item de
-// FOCO a mais, no indice MENU_N — nao entrou no enum de proposito, porque
-// trocar de perfil nao e uma aba do app e ninguem deve poder "navegar" para
-// ela como destino.
-#define NV_MENU_RODAPE_H    MK(72.0f)
-#define NV_MENU_AVATAR      MK(40.0f)
-#define NV_MENU_AVATAR_RAIL MK(44.0f)
-#define NV_MENU_FOCOS      (MENU_N + 1)
-#define MENU_RODAPE         MENU_N
-// Layout Dinamica: as pastas de Streaming entram como focos depois do rodape
+// FOCOS DA BARRA: os destinos do app e, na Dinamica, as pastas de Streaming
+// logo depois. O rodape da conta saiu com o perfil.
+#define NV_MENU_FOCOS      MENU_N
+// Layout Dinamica: as pastas de Streaming entram como focos depois dos destinos
 // (MENU_ST0 + k). So a barra da Apple TV usa; a rail classica nao as conhece.
 #define NV_MENU_ST_MAX      24
 #define MENU_ST0            NV_MENU_FOCOS
 #define NV_MENU_FOCOS_TV   (NV_MENU_FOCOS + NV_MENU_ST_MAX)
 
-static int   pediuTrocar = 0;
 static int   aberto  = 0;
 static int   destino = MENU_INICIO;
 static int   linha   = MENU_INICIO;   // destaque; so vira destino ao escolher
@@ -195,7 +188,6 @@ static int   pediuColecao = -1;   // col_folder da pasta escolhida na barra
 static int    buscaOk, buscaLongo, pediuSpot;
 static Uint32 buscaDesde;
 static void icone(int d, float cx, float cy, float s, float r, float g, float b, float a);
-static void corAvatar(const char *hex, float *r, float *g, float *b);
 static int  tvAtivo(void);
 static int  tvOrdem(int *lista);
 #ifdef NV_TOUCH_UI
@@ -220,18 +212,16 @@ static float limita01(float v) { return v < 0.0f ? 0.0f : v > 1.0f ? 1.0f : v; }
 // mola passa um pouco de 1). Tudo medido a partir do canto (x, y) do painel.
 typedef struct {
   float x, y, w, h, raio;
-  float fioY, fioM;          // fio do rodape: y e margem
-  float rodY, rodH;          // linha do rodape
 } MenuGeo;
 static float itensFim(void) {   // base da ultima linha, a partir do topo do painel
   return NV_MENU_PAD + visiveis() * (NV_MENU_ITEM_H + NV_MENU_ITEM_VAO) - NV_MENU_ITEM_VAO;
 }
 // A altura acompanha o repique da largura (`e` pode passar de 1): a ilha
-// inteira "pula", nao so a largura.
+// inteira "pula", nao so a largura. Sem o rodape da conta (removido com o
+// perfil), o painel termina na ultima linha mais o mesmo respiro do topo.
 static float alturaEm(float e) {
-  float m = anim_mistura(NV_MENU_FIO_RAIL, NV_MENU_FIO_ABRE, e < 0.0f ? 0.0f : e);
-  return itensFim() + NV_MENU_ITEM_VAO + 2.0f * m + MK(1.0f) + NV_MENU_ITEM_VAO
-       + anim_mistura(NV_MENU_AVATAR_RAIL, NV_MENU_RODAPE_H, e < 0.0f ? 0.0f : e) + NV_MENU_PAD;
+  (void)e;
+  return itensFim() + NV_MENU_PAD;
 }
 // `entrada` (0..1) so conta na Padrao com a rail recolhida: o painel desliza
 // de fora da tela pela esquerda.
@@ -250,10 +240,6 @@ static MenuGeo geoEm(float e, float entrada) {
     g.x = NV_MENU_X;
     g.y = (NV_TELA_H - g.h) * 0.5f;
   }
-  g.fioM = anim_mistura(NV_MENU_FIO_RAIL, NV_MENU_FIO_ABRE, ec);
-  g.fioY = g.y + itensFim() + NV_MENU_ITEM_VAO + g.fioM;
-  g.rodY = g.fioY + MK(1.0f) + g.fioM + NV_MENU_ITEM_VAO;
-  g.rodH = anim_mistura(NV_MENU_AVATAR_RAIL, NV_MENU_RODAPE_H, ec);
   return g;
 }
 static float linhaY(const MenuGeo *g, int k) {
@@ -308,7 +294,6 @@ static void alvosDasLinhas(const MenuGeo *g, float x, float w) {
     if (!mostra(i)) continue;
     ponteiro_alvo(x, linhaY(g, k++), w, NV_MENU_ITEM_H, ponteiroLinha, NULL, i, 0);
   }
-  ponteiro_alvo(x, g->rodY, w, g->rodH, ponteiroLinha, NULL, MENU_RODAPE, 0);
 }
 
 // O MATERIAL DA ILHA (CSS .ilha do mockup), o mesmo nas duas formas:
@@ -352,12 +337,6 @@ static void desenhaMaterial(const MenuGeo *g, float a) {
   }
 }
 
-static void desenhaRodape(const MenuGeo *g, float e, float alpha, float foco, float aTexto);
-
-// O PAINEL nas duas larguras. `e` vai de 0 (rail: so icones) a 1 (aberto, com
-// rotulos; passa um pouco no repique); `a` e a opacidade do painel todo;
-// `focos` diz se as molas de foco valem (a rail parada nao tem foco: a
-// primeira tecla abre o painel); `entrada` e o deslize da Padrao recolhida.
 static void desenhaBarra(float e, float a, int focos, float entrada) {
   float ar, ag, ab;
   float ec = limita01(e);
@@ -416,12 +395,6 @@ static void desenhaBarra(float e, float a, int focos, float entrada) {
         txt_desenhar_alpha(l, g.x + NV_MENU_ROTULO_X, cy - l.h * 0.5f, aRot * op);
       } }
   }
-  // O fio do rodape: na rail um traco de 40 centrado no icone (a 10 %);
-  // aberto vai de 14 a 14 da pilula da linha (a 8 %).
-  { float fw = anim_mistura(MK(40.0f), g.w - 2.0f * (NV_MENU_PAD + MK(14.0f)), ec);
-    float fx = anim_mistura(icx - MK(20.0f), g.x + NV_MENU_PAD + MK(14.0f), ec);
-    gfx_cor((GfxRect){ fx, g.fioY, fw, MK(1.0f) }, 0, 1, 1, 1, anim_mistura(.10f, .08f, ec) * a); }
-  desenhaRodape(&g, e, a, focos ? animFoco[MENU_RODAPE] : 0.0f, aRot);
   gfx_sem_recorte();
 }
 
@@ -489,18 +462,11 @@ static void escolher(void) {
     linha = destino;
     return;
   }
-  if (linha == MENU_RODAPE) {
-    // O rodape nao troca de destino: ele pede a tela de escolha de perfil.
-    pediuTrocar = 1;
-    aberto = 0;
-    linha = destino;
-    return;
-  }
   if (linha != destino) { destino = linha; mudou = 1; }
   aberto = 0;
 }
 
-int menu_pediu_trocar(void) { int p = pediuTrocar; pediuTrocar = 0; return p; }
+int menu_pediu_trocar(void) { return 0; }   // a conta saiu do app: nao ha perfil para trocar
 int menu_pediu_colecao(void) { int c = pediuColecao; pediuColecao = -1; return c; }
 int menu_pediu_spotlight(void) { int p = pediuSpot; pediuSpot = 0; return p; }
 
@@ -560,7 +526,7 @@ void menu_evento(const SDL_Event *e) {
   if (k == SDLK_DOWN) {
     int j = linha + 1;
     while (j < MENU_N && !mostra(j)) j++;
-    if (j < NV_MENU_FOCOS) linha = j;
+    if (j < MENU_N) linha = j;
   } else if (k == SDLK_UP) {
     int j = linha - 1;
     while (j >= 0 && !mostra(j)) j--;
@@ -641,87 +607,13 @@ static void iconeTraco(int d, float cx, float cy, float s, float r, float g, flo
   gfx_icone((GfxRect){cx-s*.5f, cy-s*.5f, s, s}, nomes[d], r, g, b, a);
 }
 
-// Cor do avatar a partir do "#RRGGBB" que a conta guarda. Sem cor legivel, o
+// Cor do avatar a partir do "#RRGGBB" que a conta guardava. Sem cor legivel, o
 // azul do padrao do web.
-static void corAvatar(const char *hex, float *r, float *g, float *b) {
-  unsigned v = 0;
-  *r = 0.12f; *g = 0.53f; *b = 0.90f;
-  if (!hex || hex[0] != '#' || strlen(hex) < 7) return;
-  if (sscanf(hex + 1, "%6x", &v) != 1) return;
-  *r = ((v >> 16) & 255) / 255.0f;
-  *g = ((v >> 8) & 255) / 255.0f;
-  *b = (v & 255) / 255.0f;
-}
-
-// A INICIAL do nome, respeitando UTF-8: um nome comecado por acento tem dois
-// bytes, e cortar no primeiro desenha lixo.
 static void inicialDe(const char *nome, char *dst, size_t tam) {
   if (tam < 3) { if (tam) dst[0] = 0; return; }
   dst[0] = (nome && nome[0]) ? nome[0] : '?';
   dst[1] = 0;
   if (nome && (unsigned char)nome[0] >= 0xC0 && nome[1]) { dst[1] = nome[1]; dst[2] = 0; }
-}
-
-// Rodape: quem esta usando, e a porta para trocar. Desenha nas DUAS larguras —
-// na rail so o avatar (44, no centro do icone, mockup 2), aberto o avatar de
-// 40 na linha de 72 com o nome e a acao (mockup 1). aTexto e a mesma rampa dos
-// rotulos. Foco = a mesma superficie clara das linhas.
-static void desenhaRodape(const MenuGeo *g, float e, float alpha, float foco, float aTexto) {
-  const ContaPerfil *p = perfis_item_ativo();
-  float ec = limita01(e);
-  float cy = g->rodY + g->rodH * 0.5f;
-  float cr, cg, cb;
-  float tam = anim_mistura(NV_MENU_AVATAR_RAIL, NV_MENU_AVATAR, ec);
-  // Aberto, o avatar comeca no mesmo recuo de 20 do icone (.it padding).
-  float cx = g->x + anim_mistura(NV_MENU_ICONE_RAIL, NV_MENU_PAD + MK(20.0f) + NV_MENU_AVATAR * 0.5f, ec);
-  float tx = g->x + NV_MENU_PAD + MK(20.0f) + NV_MENU_AVATAR + MK(18.0f);
-  float txMax = NV_MENU_W_ABERTO - (NV_MENU_PAD + MK(20.0f) + NV_MENU_AVATAR + MK(18.0f)) - NV_MENU_PAD - MK(20.0f);
-  char ini[4];
-  GfxRect av;
-
-  if (alpha <= 0.01f) return;
-  focoLinha(linhaRect(g, g->rodY, g->rodH, e), foco, alpha);
-
-  av.x = cx - tam * 0.5f;
-  av.y = cy - tam * 0.5f;
-  av.w = av.h = tam;
-
-  // FOTO quando a conta tem uma; senao o circulo com a inicial, que e o mesmo
-  // que o app web mostra quando `avatar_url` e nulo. A inicial e 19 Bold
-  // (TXT_V2_KBD18) a 90 % = 17 na tela: o mockup usa 16/700 no avatar de 40
-  // e 17/700 no de 44.
-  // A foto e pedida pela largura com que desenha (tex_obter_larg): o teto
-  // unico de 640 decodificava ate 1,6 MB de avatar para um circulo de 44.
-  // Ver tests/artemenor.c.
-  { GLuint tex = (p && p->avatarUrl[0]) ? tex_obter_larg(p->avatarUrl, av.w) : 0;
-    if (tex) {
-      // Aspecto real da foto (#388): com 1.0 uma foto retangular era esticada
-      // no quadrado; GFX_AVATAR recorta em cover sem cair em contain.
-      gfx_tex_aspect_atual = tex_aspecto(p->avatarUrl);
-      gfx_rect(av, tex, GFX_AVATAR, 0, 0, 0, 0.5f, 0, 0, 0, alpha);
-      gfx_tex_aspect_atual = 0.0f;
-    } else {
-      corAvatar(p ? p->corHex : NULL, &cr, &cg, &cb);
-      gfx_cor(av, 0.5f, cr, cg, cb, alpha);
-      inicialDe(p ? p->nome : NULL, ini, sizeof ini);
-      { TxtLinha l = txt_linha(TXT_V2_KBD18, ini, 255, 255, 255, 255);
-        txt_desenhar_alpha(l, av.x + (av.w - l.w) * 0.5f,
-                           av.y + (av.h - l.h) * 0.5f, alpha); } } }
-
-  if (aTexto > 0.01f) {
-    // Nome no corpo dos rotulos (TXT_BODY 25/500 a 90 % = 22,5 na tela, o
-    // 22/500 do mockup) em --fg cheio; a acao em cinza a 45 %. O mockup pede
-    // 16 px para a acao; TXT_CAPTION2 (21) a 90 % da 19 na tela, o mais perto
-    // dele que o piso de leitura do app a 3 m ainda aceita para uma frase.
-    int emFoco = foco > 0.5f;
-    int c = emFoco ? 255 : 243;
-    TxtLinha nome = txt_linha_corta(TXT_BODY, p ? p->nome : "Sua conta", c, c - (emFoco ? 0 : 1),
-                                    c - (emFoco ? 0 : 4), 255, txMax);
-    TxtLinha acao = txt_linha_corta(TXT_CAPTION2, "Trocar de perfil", 243, 242, 239, 255, txMax);
-    float alto = nome.h + MK(2.0f) + acao.h, y0 = cy - alto * 0.5f;
-    txt_desenhar_alpha(nome, tx, y0, aTexto);
-    txt_desenhar_alpha(acao, tx, y0 + nome.h + MK(2.0f), aTexto * (emFoco ? .62f : .45f));
-  }
 }
 
 // O PAINEL ESTA NA TELA? E com que forma. Fechado e assentado, com a rail
@@ -937,7 +829,6 @@ static int tvPastaDoFoco(int foco) {
 static int tvOrdem(int *lista) {
   const int *v;
   int n = 0, i, np = tvPastas(&v);
-  lista[n++] = MENU_RODAPE;
   for (i = 0; i < MENU_N; i++) if (mostra(TV_ORDEM[i])) lista[n++] = TV_ORDEM[i];
   for (i = 0; i < np; i++) lista[n++] = MENU_ST0 + i;
   return n;
@@ -950,7 +841,6 @@ static float tvLayout(float *ys, float *yRotulo) {
   int i, np = tvPastas(&v);
   float y = TV_CAB_H;
   for (i = 0; i < NV_MENU_FOCOS_TV; i++) ys[i] = -1.0f;
-  ys[MENU_RODAPE] = 0.0f;
   for (i = 0; i < MENU_N; i++)
     if (mostra(TV_ORDEM[i])) { ys[TV_ORDEM[i]] = y; y += TV_LINHA_H; }
   if (yRotulo) *yRotulo = -1.0f;
@@ -1029,7 +919,7 @@ static void tvAtualizar(float dt) {
   { float ys[NV_MENU_FOCOS_TV], total = tvLayout(ys, NULL), alvoR = tvRolar;
     float vis = total < TV_ALTURA_MAX ? total : TV_ALTURA_MAX;
     float y0 = (linha >= 0 && linha < NV_MENU_FOCOS_TV) ? ys[linha] : 0.0f;
-    float h0 = linha == MENU_RODAPE ? TV_CAB_H : TV_LINHA_H, folga = TV_LINHA_H * 0.5f;
+    float h0 = TV_LINHA_H, folga = TV_LINHA_H * 0.5f;
     if (y0 >= 0.0f) {
       if (y0 - folga < alvoR) alvoR = y0 - folga;
       if (y0 + h0 + folga > alvoR + vis) alvoR = y0 + h0 + folga - vis;
@@ -1049,26 +939,6 @@ static void tvAtualizar(float dt) {
     animFoco[i] = anim_mola(animFoco[i], a, dt,
                             a > animFoco[i] ? NV_MOLA_FOCO : NV_MOLA_MENU_DESFOCO);
   }
-}
-
-// Iniciais como na referencia ("HR"): a primeira letra das duas primeiras
-// palavras do nome, respeitando UTF-8. Nome de uma palavra so: uma letra.
-static void tvIniciais(const char *nome, char *dst, size_t tam) {
-  size_t n = 0;
-  int palavras = 0;
-  const char *p = nome && nome[0] ? nome : "?";
-  while (*p && palavras < 2 && n + 5 < tam) {
-    while (*p == ' ') p++;
-    if (!*p) break;
-    { size_t len = 1;
-      unsigned char c = (unsigned char)*p;
-      if (c >= 0xF0) len = 4; else if (c >= 0xE0) len = 3; else if (c >= 0xC0) len = 2;
-      if (len == 1) dst[n++] = (char)toupper(c);
-      else { size_t k; for (k = 0; k < len && p[k]; k++) dst[n++] = p[k]; } }
-    palavras++;
-    while (*p && *p != ' ') p++;
-  }
-  dst[n] = 0;
 }
 
 static void tvRelogio(char *buf, size_t tam) {
@@ -1132,23 +1002,6 @@ static void tvCirculoPasta(const ColFolder *pf, float cx, float cy, float alfa) 
   }
 }
 
-static void tvAvatar(GfxRect av, float alfa) {
-  const ContaPerfil *p = perfis_item_ativo();
-  // Como o avatar do menu: pela largura com que desenha (tex_obter_larg).
-  GLuint tex = (p && p->avatarUrl[0]) ? tex_obter_larg(p->avatarUrl, av.w) : 0;
-  if (tex) {
-    gfx_tex_aspect_atual = 1.0f;
-    gfx_rect(av, tex, GFX_CARD, 0, 0, 0, 0.5f, 0, 0, 0, alfa);
-  } else {
-    float cr, cg, cb;
-    char ini[16];
-    corAvatar(p ? p->corHex : NULL, &cr, &cg, &cb);
-    gfx_cor(av, 0.5f, cr, cg, cb, alfa);
-    tvIniciais(p ? p->nome : NULL, ini, sizeof ini);
-    { TxtLinha l = txt_linha(TXT_CAPTION2, ini, 255, 255, 255, 255);
-      txt_desenhar_alpha(l, av.x + (av.w - l.w) * 0.5f, av.y + (av.h - l.h) * 0.5f, alfa); }
-  }
-}
 
 // Escurece SO o lado esquerdo: faixas verticais de cor chapada com o alfa
 // caindo em degraus pequenos ate sumir em x ~ 900. Cada pixel e pintado UMA
@@ -1281,32 +1134,14 @@ static void tvDesenhar(void) {
     topo = Q.y - tvRolar;
     gfx_recorte(R.x, R.y, R.w, R.h);
 
-    // Cabecalho: avatar 44, nome 26 Medium, relogio 23 Regular cinza claro.
-    // Focavel: e o "trocar de usuario".
+    // Cabecalho: so o relogio. O avatar/nome da conta saiu com o perfil; a
+    // altura do cabecalho fica para a barra nao colar no primeiro destino.
     { float cyCab = topo + 50.0f;
-      int emFoco, c, cRel;
-      const ContaPerfil *p = perfis_item_ativo();
       char hora[12];
-      GfxRect av = { Q.x + TV_PAD_X + TV_COL_CX - TV_AVATAR * 0.5f, cyCab - TV_AVATAR * 0.5f,
-                     TV_AVATAR, TV_AVATAR };
-      TxtLinha rel, nome;
-      f = animFoco[MENU_RODAPE];
-      if (f > 0.01f) {
-        GfxRect pill = { Q.x + TV_PAD_X, cyCab - TV_PILULA_H * 0.5f, Q.w - TV_PAD_X * 2.0f, TV_PILULA_H };
-        gfx_cor(tvPillFoco(pill, f), 0.5f, FR, FG, FB, f * ac);
-      }
-      emFoco = f > 0.5f;
-      c = emFoco ? TINTA_FOCO : 240;
-      cRel = emFoco ? 70 : 200;
-      tvAvatar(av, ac);
+      TxtLinha rel;
       tvRelogio(hora, sizeof hora);
-      rel = txt_linha(TXT_DET_META2, hora, cRel, cRel, cRel, 255);
-      nome = txt_linha_corta(TXT_PG_RELOGIO, p ? p->nome : "Sua conta", c, c, c, 255,
-                             Q.x + Q.w - 24.0f - rel.w - 16.0f - (Q.x + TV_PAD_X + TV_ROT_X));
-      txt_desenhar_alpha(nome, Q.x + TV_PAD_X + TV_ROT_X, cyCab - nome.h * 0.5f, ac);
-      txt_desenhar_alpha(rel, Q.x + Q.w - 24.0f - rel.w, cyCab - rel.h * 0.5f, ac);
-      if (aberto && ponteiro_ativo() && cyCab - TV_PILULA_H * 0.5f >= Q.y - 1.0f)
-        ponteiro_alvo(Q.x, cyCab - TV_PILULA_H * 0.5f, Q.w, TV_PILULA_H, ponteiroLinha, NULL, MENU_RODAPE, 0); }
+      rel = txt_linha(TXT_DET_META2, hora, 200, 200, 200, 255);
+      txt_desenhar_alpha(rel, Q.x + Q.w - 24.0f - rel.w, cyCab - rel.h * 0.5f, ac); }
 
     // Rotulo da secao de Streaming, mais marcante (dono, 14/10): um corpo
     // acima do rotulo, Bold, em CAIXA ALTA com tracking — o padrao das secoes
@@ -1419,11 +1254,10 @@ static int topoIndice(const int *ordem, int n, int id) {
   return -1;
 }
 
-// ESQUERDA/DIREITA: o circulo do perfil e o primeiro da fila, a pilula vem depois.
+// ESQUERDA/DIREITA entre as pilulas da barra.
 static void topoMover(int dir) {
   int ordem[NV_MENU_FOCOS + 1], n = 0, k, p = 0;
-  ordem[n++] = MENU_RODAPE;
-  n += topoLista(ordem + 1);
+  n += topoLista(ordem);
   for (k = 0; k < n; k++) if (ordem[k] == linha) p = k;
   p += dir;
   if (p >= 0 && p < n) linha = ordem[p];
@@ -1602,9 +1436,9 @@ static void topoCapsula(const TopoCapsula *c, float x0, float y, int foco, float
 static void topoDesenhar(void) {
   TopoTira t;
   int k;
-  float a, x0, y, fAv;
+  float a, x0, y;
   int focos = aberto || desliza >= 0.002f || expande > 0.004f;
-  MenuGeo g = { 0 }, gAv = { 0 };
+  MenuGeo g = { 0 };
   int din = topoDinamica();
   float entrada = din ? topoExpansao() : anim_suave(desliza);
   topoMedir(&t);
@@ -1616,7 +1450,6 @@ static void topoDesenhar(void) {
     x0 += g.x - (x0 - TOPO_TRILHA);
     focos = topoTempo > 0.0f;
   }
-  gAv.x = TOPO_X; gAv.y = TOPO_Y; gAv.w = gAv.h = TOPO_H; gAv.raio = TOPO_H * 0.5f;
   // Fechada vale a opacidade que a tela pediu (0 fora da home); abrindo ela
   // nasce pela rampa do veu, e fechando volta para la.
   a = fmaxf(tvPilAlfa, entrada);
@@ -1634,7 +1467,6 @@ static void topoDesenhar(void) {
     ponteiro_alvo(g.x, g.y, g.w, g.h, NULL, NULL, 0, 0);
   }
   desenhaMaterial(&g, a * (din ? .72f + .28f * entrada : 1.0f));
-  desenhaMaterial(&gAv, a * (din ? topoEntrada(0) : 1.0f));
   if (din) {
     GfxRect p = topoFechada();
     float ap = a * (1.0f - limita01(topoTempo * 5.0f));
@@ -1644,12 +1476,7 @@ static void topoDesenhar(void) {
     if (!aberto && ponteiro_ativo() && a > .5f)
       ponteiro_alvo(p.x, p.y, p.w, p.h, ponteiroLinha, NULL, destino, 0);
   }
-  // O perfil: o avatar e do tamanho de uma pilula, dentro do seu circulo de
-  // trilha (CHIP_D = TAB_PILL_H); em foco ganha o aro claro.
-  fAv = focos ? animFoco[MENU_RODAPE] : 0.0f;
-  tvAvatar((GfxRect){ gAv.x + TOPO_TRILHA, gAv.y + TOPO_TRILHA, TOPO_PILULA_H, TOPO_PILULA_H }, a * (din ? topoEntrada(0) : 1.0f));
-  if (fAv > 0.01f) gfx_vidro_borda((GfxRect){ gAv.x, gAv.y, gAv.w, gAv.h }, 0.5f, .75f * fAv * a);
-  if (ponteiro_ativo() && a > 0.5f && (!din || aberto)) ponteiro_alvo(gAv.x, gAv.y, gAv.w, gAv.h, ponteiroLinha, NULL, MENU_RODAPE, 0);
+  // O avatar da conta saiu com o perfil: a barra fica so com os destinos.
   gfx_recorte(g.x, g.y, g.w, g.h);
   // As capsulas por BAIXO dos rotulos: selecao, e o foco por cima dela.
   topoCapsula(&topoSel, x0, y, 0, a * (din ? topoEntrada(0) : 1.0f));

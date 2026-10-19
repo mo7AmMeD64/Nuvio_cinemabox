@@ -2813,7 +2813,70 @@ float ajustes_tamanho_ajustes(void) {
 }
 // The phone always uses List. Keep the stored TV preference unchanged.
 static int ajLayoutSelecionavel(void) { return !telefoneui_ativo(); }
+// OPCOES QUE SAIRAM DO APP junto com a conta, os servidores e os add-ons
+// (dono, 19/10). O slot no enum fica: valor[] e CHAVE[] sao posicionais e o
+// arquivo do aparelho nao pode andar. A mesma lista esta em RETIRADAS de
+// tests/ajustes_secoes.py, que le o catalogo da tela.
+static int retirada(int op) {
+  switch (op) {
+    // conta, perfis sincronizados e social
+    case AJ_PERFIL_ATIVO: case AJ_SYNC: case AJ_SAIR:
+    case AJ_PERFIL_PESQ: case AJ_PERFIL_EDITAR:
+    case AJ_HIST_CONTA: case AJ_SOCIAL: case AJ_DISCORD:
+    case AJ_TRAKT: case AJ_SIMKL: case AJ_SALVOS_DEST:
+    case AJ_CW_FONTE: case AJ_AMIGOS_ESTILO: case AJ_ENQUETES:
+    case AJ_BUSCA_NUVIO: case AJ_BUSCA_ORIGEM:
+    // add-ons, provedores externos e debrid
+    case AJ_ADDONS: case AJ_PLUGINS: case AJ_ADDONS_PRINCIPAL:
+    case AJ_BUSCA_CINEMETA:
+    case AJ_FALHA_PROVEDORES: case AJ_FALHA_PROVEDOR_ORDEM:
+    case AJ_FALHA_ADDONS: case AJ_FALHA_ADDON_ORDEM: case AJ_FALHA_ADDON_LIMITE:
+    case AJ_FONTE_ESCOPO: case AJ_FONTE_ADDONS_PERM: case AJ_FONTE_PLUGINS_PERM:
+    case AJ_FONTE_OUTROS: case AJ_FONTE_ORDEM: case AJ_FONTE_ORDEM_USO:
+    case AJ_FONTE_ORDEM_ADDON:
+    case AJ_DEBRID_RD: case AJ_DEBRID_TB: case AJ_DEBRID_PM: case AJ_DEBRID_AD:
+    case AJ_DEBRID_AD_TESTAR: case AJ_DEBRID_RD_TESTAR: case AJ_DEBRID_TB_TESTAR:
+    case AJ_DEBRID_PM_TESTAR: case AJ_PROVEDORES_ESCOPO:
+    case AJ_JF_LIGADO: case AJ_JF_SERVIDOR: case AJ_JF_ENTRAR: case AJ_JF_SAIR:
+    case AJ_EM_SERVIDOR: case AJ_EM_ENTRAR: case AJ_EM_SAIR:
+    case AJ_PX_ENTRAR: case AJ_PX_SERVIDOR: case AJ_PX_SAIR:
+    // TV ao vivo (Xtream/Stalker/EPG/listas)
+    case AJ_XTREAM_SERVIDOR: case AJ_XTREAM_USUARIO: case AJ_XTREAM_SENHA:
+    case AJ_XTREAM_CONTA: case AJ_XTREAM_CONEXOES: case AJ_XTREAM_LIMPAR:
+    case AJ_STALKER_PORTAL: case AJ_STALKER_MAC: case AJ_STALKER_LIMPAR:
+    case AJ_EPG_PAIS: case AJ_LIVETV_SUGERIR: case AJ_LIVETV_DIAG:
+    case AJ_LIVETV_RES: case AJ_LIVETV_ESPERA: case AJ_LIVETV_FORMATO:
+    case AJ_LIVETV_MODO: case AJ_LIVETV_PROXY:
+    case AJ_URL_LISTA: case AJ_URL_M3U_ADD: case AJ_URL_XMLTV_ADD: case AJ_URL_REM:
+    // P2P / torrent
+    case AJ_P2P_LIGADO: case AJ_P2P_URL: case AJ_P2P_TESTAR:
+    case AJ_P2P_LIMITE: case AJ_P2P_DESTINO:
+    // metadados externos (TMDB, MDBList, fanart, notas, poster externo)
+    case AJ_TMDB_LIGADO: case AJ_TMDB_IDIOMA: case AJ_TMDB_ARTE: case AJ_TMDB_BASICO:
+    case AJ_TMDB_FICHA: case AJ_TMDB_DATAS: case AJ_TMDB_ELENCO: case AJ_TMDB_PROD:
+    case AJ_TMDB_REDES: case AJ_TMDB_EPS: case AJ_TMDB_TRAILERS: case AJ_TMDB_MAIS:
+    case AJ_TMDB_COL: case AJ_TMDB_CW:
+    case AJ_MDB_LIGADO: case AJ_MDB_CHAVE: case AJ_FANART_CHAVE:
+    case AJ_DET_META_EXT: case AJ_DET_SO_CINEMETA:
+    case AJ_NT_IMDB: case AJ_NT_TOMATES: case AJ_NT_AUDIENCIA: case AJ_NT_META:
+    case AJ_NT_METAUSER: case AJ_NT_TRAKT: case AJ_NT_TMDB: case AJ_NT_LETTER:
+    case AJ_NT_MAL: case AJ_NT_EBERT: case AJ_NT_SCORE: case AJ_NT_ORDEM: case AJ_NT_EP:
+    case AJ_POSTER_PROV: case AJ_POSTER_INST: case AJ_POSTER_TOKEN: case AJ_POSTER_EXTRA:
+    case AJ_POSTER_CHAVE: case AJ_POSTER_MODELO: case AJ_POSTER_TESTAR:
+    case AJ_COL_ARTE_CONTA:
+    // selos da conta e curadoria do web
+    case AJ_SELOS_CORES: case AJ_SELOS_PACOTE: case AJ_SELOS_PACOTE_ADD:
+    case AJ_SELOS_PACOTE_REM: case AJ_CURADORIA_URL:
+    // destino de barra que nao existe mais, cartaz sempre 16:9, registro/apoio
+    case AJ_MENU_GUIA: case AJ_MENU_AGENDA: case AJ_MENU_PERFIL: case AJ_LANDSCAPE:
+    case AJ_APOIAR: case AJ_NOVIDADES20: case AJ_VER_REGISTRO: case AJ_ENVIAR_LOG:
+    case AJ_ENVIO_AUTO: case AJ_BAIXAR_REGISTRO:
+      return 1;
+    default: return 0;
+  }
+}
 static int ajOpcaoDisponivel(int op) {
+  if (retirada(op)) return 0;
   if (op == AJ_AMPLIAR_UI) return painel4k() && !telefoneui_ativo();
   if (op == AJ_ARTE_TOM) return valor[AJ_TEMA] == AJ_TEMA_DINAMICA;
   if (op == AJ_FALHA_ADDON_LIMITE) return faAddonEditar[0] != 0;
@@ -3253,7 +3316,7 @@ int ajustes_tex_mb(void) {
   if (SEGURO && i >= 5) i = 0;            // 400/512 MB: volta ao automatico da RAM
   return (i >= 0 && i < 7) ? TEX_MB_DE[i] : 0;
 }
-int ajustes_posteres_deitados(void)   { return lig(AJ_LANDSCAPE); }
+int ajustes_posteres_deitados(void)   { return 1; }   // dono (19/10): cartao 16:9 em todas as fileiras
 int ajustes_gradiente_foco_classico(void) { return lig(AJ_GRAD_CLASSICO); }
 
 
@@ -3373,7 +3436,7 @@ int   ajustes_trailer_fonte(void)     { int v = valor[AJ_TRAILER_FONTE]; return 
 int  ajustes_envio_auto(void)         { return lig(AJ_ENVIO_AUTO); }
 int  ajustes_menu_explorar(void)      { return lig(AJ_MENU_EXPLORAR); }
 int  ajustes_menu_guia(void)          { return lig(AJ_MENU_GUIA); }
-int  ajustes_menu_agenda(void)        { return lig(AJ_MENU_AGENDA); }
+int  ajustes_menu_agenda(void)        { return 0; }   // agenda saiu do app (dono, 19/10)
 int  ajustes_menu_perfil(void)        { return lig(AJ_MENU_PERFIL); }
 int  ajustes_gpu_efeitos(void) { return valor[AJ_GPU_EFEITOS]; }
 int  ajustes_itens_fileira(void) {
@@ -3432,7 +3495,6 @@ int ajustes_descobrir_na_busca(void)  { return valor[AJ_DESCOBRIR] == 0; }
 int ajustes_cw_ligado(void)           { return lig(AJ_CW_LIGADO); }
 int ajustes_cw_ok_toca(void)          { return valor[AJ_CW_OK] == 0; }
 int ajustes_cw_estilo(void)           { return valor[AJ_CW_ESTILO]; }
-int ajustes_cw_fonte(void)            { return valor[AJ_CW_FONTE]; }
 int ajustes_cw_thumb_episodio(void)   { return lig(AJ_CW_THUMB); }
 int ajustes_cw_desfocar_proximo(void) { return lig(AJ_CW_BLUR_PROX); }
 int ajustes_cw_do_episodio_mais_alto(void) { return lig(AJ_CW_FURTHEST); }
@@ -3451,7 +3513,14 @@ int ajustes_dts_tpk_modo(void) {
 }
 int ajustes_dv_mkv(void)              { return lig(AJ_DV_MKV); }
 int ajustes_hist_conta(void)          { return lig(AJ_HIST_CONTA); }
-int ajustes_social(void)              { return lig(AJ_SOCIAL); }
+// Sem conta e sem social: a fileira de amigos, a atividade e as recomendacoes
+// sairam do app (dono, 19/10). A opcao AJ_SOCIAL fica no arquivo de chaves pela
+// posicao, mas o app responde sempre "nao".
+int ajustes_social(void)              { return 0; }
+// A fileira de retomada e LOCAL: o valor gravado pode ter vindo de quando
+// havia conta/Trakt e deixaria o Continuar vazio. "Todas" sempre inclui o
+// progresso local (descoberta.c).
+int ajustes_cw_fonte(void)            { return AJ_CWF_AMBAS; }
 int ajustes_amigos_estilo(void)       { return valor[AJ_AMIGOS_ESTILO]; }
 // Espaco da Home em fracao do valor medido. Fora da faixa do NUM (arquivo torto)
 // volta para dentro dela; 0 (arquivo sem a chave) nao chega aqui: o padrao e 100.
@@ -6130,7 +6199,7 @@ static void conferirTela(void) {
     if (TELA[i].tipo == IT_OPC && TELA[i].op >= 0 && TELA[i].op < AJ_N)
       vezes[TELA[i].op]++;
   for (i = 0; i < AJ_N; i++)
-    if (vezes[i] != 1 && !(vezes[i] == 0 && foraDestaPlataforma(i)))
+    if (vezes[i] != 1 && !(vezes[i] == 0 && (foraDestaPlataforma(i) || retirada(i))))
       printf("[ajustes] opcao %d (\"%s\") aparece %d vez(es) em TELA\n",
              i, OPCOES[i].rotulo, vezes[i]);
   if (TELA[0].tipo != IT_SEC)

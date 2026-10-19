@@ -46,6 +46,32 @@ RETIRADAS = {
     # in "Ordem dos provedores", size/groups in "Filtros de fontes".
     "AJ_FALHA_RD_LIMITE", "AJ_FALHA_TB_LIMITE", "AJ_FALHA_PM_LIMITE", "AJ_FALHA_AD_LIMITE",
     "AJ_FILTRO_TAM_MAX", "AJ_FILTRO_GRUPOS",
+    # 2.0.7 (dono, 19/10): cliente so de VOD CinemaBox. Conta/perfis sociais,
+    # add-ons/plugins/debrid/servidores, TV ao vivo, debrid, P2P, metadados
+    # (TMDB/MDBList/fanart/notas/poster externo), selos da conta, curadoria,
+    # registro/apoio e a agenda sairam da tela; o gate e retirada() em ajustes.c.
+    "AJ_PERFIL_ATIVO", "AJ_SYNC", "AJ_SAIR", "AJ_PERFIL_PESQ", "AJ_PERFIL_EDITAR", "AJ_HIST_CONTA",
+    "AJ_SOCIAL", "AJ_DISCORD", "AJ_TRAKT", "AJ_SIMKL", "AJ_SALVOS_DEST", "AJ_CW_FONTE",
+    "AJ_AMIGOS_ESTILO", "AJ_ENQUETES", "AJ_BUSCA_NUVIO", "AJ_BUSCA_ORIGEM", "AJ_ADDONS", "AJ_PLUGINS",
+    "AJ_ADDONS_PRINCIPAL", "AJ_BUSCA_CINEMETA", "AJ_FALHA_PROVEDORES", "AJ_FALHA_PROVEDOR_ORDEM", "AJ_FALHA_ADDONS", "AJ_FALHA_ADDON_ORDEM",
+    "AJ_FALHA_ADDON_LIMITE", "AJ_FONTE_ESCOPO", "AJ_FONTE_ADDONS_PERM", "AJ_FONTE_PLUGINS_PERM", "AJ_FONTE_OUTROS", "AJ_FONTE_ORDEM",
+    "AJ_FONTE_ORDEM_USO", "AJ_FONTE_ORDEM_ADDON", "AJ_DEBRID_RD", "AJ_DEBRID_TB", "AJ_DEBRID_PM", "AJ_DEBRID_AD",
+    "AJ_DEBRID_AD_TESTAR", "AJ_DEBRID_RD_TESTAR", "AJ_DEBRID_TB_TESTAR", "AJ_DEBRID_PM_TESTAR", "AJ_PROVEDORES_ESCOPO", "AJ_JF_LIGADO",
+    "AJ_JF_SERVIDOR", "AJ_JF_ENTRAR", "AJ_JF_SAIR", "AJ_EM_SERVIDOR", "AJ_EM_ENTRAR", "AJ_EM_SAIR",
+    "AJ_PX_ENTRAR", "AJ_PX_SERVIDOR", "AJ_PX_SAIR", "AJ_XTREAM_SERVIDOR", "AJ_XTREAM_USUARIO", "AJ_XTREAM_SENHA",
+    "AJ_XTREAM_CONTA", "AJ_XTREAM_CONEXOES", "AJ_XTREAM_LIMPAR", "AJ_STALKER_PORTAL", "AJ_STALKER_MAC", "AJ_STALKER_LIMPAR",
+    "AJ_EPG_PAIS", "AJ_LIVETV_SUGERIR", "AJ_LIVETV_DIAG", "AJ_LIVETV_RES", "AJ_LIVETV_ESPERA", "AJ_LIVETV_FORMATO",
+    "AJ_LIVETV_MODO", "AJ_LIVETV_PROXY", "AJ_URL_LISTA", "AJ_URL_M3U_ADD", "AJ_URL_XMLTV_ADD", "AJ_URL_REM",
+    "AJ_P2P_LIGADO", "AJ_P2P_URL", "AJ_P2P_TESTAR", "AJ_P2P_LIMITE", "AJ_P2P_DESTINO", "AJ_TMDB_LIGADO",
+    "AJ_TMDB_IDIOMA", "AJ_TMDB_ARTE", "AJ_TMDB_BASICO", "AJ_TMDB_FICHA", "AJ_TMDB_DATAS", "AJ_TMDB_ELENCO",
+    "AJ_TMDB_PROD", "AJ_TMDB_REDES", "AJ_TMDB_EPS", "AJ_TMDB_TRAILERS", "AJ_TMDB_MAIS", "AJ_TMDB_COL",
+    "AJ_TMDB_CW", "AJ_MDB_LIGADO", "AJ_MDB_CHAVE", "AJ_FANART_CHAVE", "AJ_DET_META_EXT", "AJ_DET_SO_CINEMETA",
+    "AJ_NT_IMDB", "AJ_NT_TOMATES", "AJ_NT_AUDIENCIA", "AJ_NT_META", "AJ_NT_METAUSER", "AJ_NT_TRAKT",
+    "AJ_NT_TMDB", "AJ_NT_LETTER", "AJ_NT_MAL", "AJ_NT_EBERT", "AJ_NT_SCORE", "AJ_NT_ORDEM",
+    "AJ_NT_EP", "AJ_POSTER_PROV", "AJ_POSTER_INST", "AJ_POSTER_TOKEN", "AJ_POSTER_EXTRA", "AJ_POSTER_CHAVE",
+    "AJ_POSTER_MODELO", "AJ_POSTER_TESTAR", "AJ_COL_ARTE_CONTA", "AJ_SELOS_CORES", "AJ_SELOS_PACOTE", "AJ_SELOS_PACOTE_ADD",
+    "AJ_SELOS_PACOTE_REM", "AJ_CURADORIA_URL", "AJ_MENU_GUIA", "AJ_MENU_AGENDA", "AJ_MENU_PERFIL", "AJ_LANDSCAPE",
+    "AJ_APOIAR", "AJ_NOVIDADES20", "AJ_VER_REGISTRO", "AJ_ENVIAR_LOG", "AJ_ENVIO_AUTO", "AJ_BAIXAR_REGISTRO",
 }
 opcoes = [op for op in opcoes if op not in RETIRADAS]
 
@@ -90,8 +116,10 @@ for t, v in itens + [("SEC", "<fim>")]:
             abertos[tipo][1] += 1
 
 n_sec = sum(1 for t, _ in itens if t == "SEC")
-if n_sec != 11:
-    falhas.append("esperadas 11 categorias, encontradas %d" % n_sec)
+# 19/10: 8 categorias — conta, add-ons/TV ao vivo e conta e servicos sairam com
+# o cliente so de CinemaBox.
+if n_sec != 8:
+    falhas.append("esperadas 8 categorias, encontradas %d" % n_sec)
 
 ajuda = re.search(r"static const char \*SECAO_AJUDA\[\] = \{(.*?)\n\};", catalogo, re.S)
 if not ajuda:

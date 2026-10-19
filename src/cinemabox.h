@@ -15,6 +15,18 @@
 // Base do unico addon do app (semeado em addons.c, respondido em rede.c).
 #define CINEMABOX_BASE "cinemabox://cb"
 
+// Uma secao da Biblioteca: um catalogo declarado no manifesto do provedor.
+#define CB_CAT_MAX 16
+typedef struct {
+  char id[16];
+  char titulo[64];
+  char tipo[8];      // "movie" | "series"
+} CbCatalogo;
+
+// Preenche `dst` com as secoes do provedor, na ordem do manifesto e sem a
+// busca. NAO usa rede: le o manifesto embutido. Devolve quantas preencheu.
+int cinemabox_catalogos(CbCatalogo *dst, int max);
+
 // Responde um pedido "cinemabox://". *nosso recebe 1 quando a URL e deste
 // provedor (mesmo sem resposta): a rede NAO deve tentar baixa-la. Devolve corpo
 // em memoria nova (free), ou NULL quando o pedido falhou. *nosso=0: nao e nosso,

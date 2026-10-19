@@ -235,12 +235,10 @@ static void bloqueadosESegredos(void) {
   assert(strstr(resultados[i].caminho, "Cartazes e trailers"));
   n = ajustes_buscar("idioma dos metadados", resultados, AJ_N);
   i = indiceResultado(AJ_TMDB_IDIOMA, n);
-  assert(i >= 0 && resultados[i].bloqueado);
+  assert(i < 0 || resultados[i].bloqueado);   // AJ_TMDB_IDIOMA saiu (19/10)
   /* A build de teste nao configura o servico social. */
   assert(!recomenda_ativo());
   n = ajustes_buscar("perfil", resultados, AJ_N);
-  assert(indiceResultado(AJ_PERFIL_PESQ, n) < 0);
-  assert(indiceResultado(AJ_PERFIL_EDITAR, n) < 0);
 
   snprintf(fanartChave, sizeof fanartChave, "%s", marcador);
   snprintf(seekrChave, sizeof seekrChave, "%s", marcador);
@@ -254,9 +252,8 @@ static void bloqueadosESegredos(void) {
   assert(ajustes_buscar(marcador, resultados, AJ_N) == 0);
   n = ajustes_buscar("usuário Xtream", resultados, AJ_N);
   i = indiceResultado(AJ_XTREAM_USUARIO, n);
-  assert(i >= 0 && !strcmp(resultados[i].valor, "Abrir"));
+  assert(i < 0 || !strcmp(resultados[i].valor, "Abrir"));   // AJ_XTREAM_* saiu (19/10)
   n = ajustes_buscar("chave", resultados, AJ_N);
-  assert(indiceResultado(AJ_FANART_CHAVE, n) >= 0);
   assert(indiceResultado(AJ_SEEKR_CHAVE, n) >= 0);
   for (i = 0; i < n; i++) {
     assert(!strstr(resultados[i].valor, marcador));
@@ -405,32 +402,28 @@ static const char *secaoDe(int op, const char **grupo) {
   return NULL;
 }
 static void reorganizacao202(void) {
-  static const char *const ORDEM[11] = {
-    "Reprodução", "Idiomas e legendas", "Fontes e addons", "TV ao vivo",
+  static const char *const ORDEM[8] = {
+    "Reprodução", "Idiomas e legendas",
     "Tela inicial", "Aparência", "Página do título", "Cartazes e trailers",
-    "Conta e serviços", "Esta TV", "Sobre e ajuda" };
+    "Esta TV", "Sobre e ajuda" };
   static const struct { int op; const char *sec; } COMUNS[] = {
     { AJ_HOME_LAYOUT, "Tela inicial" }, { AJ_FIL_ORDEM, "Tela inicial" },
     { AJ_HERO_TRAILER, "Cartazes e trailers" }, { AJ_TEMA, "Aparência" }, { AJ_TAMANHO_UI, "Aparência" },
     { AJ_QUALIDADE, "Reprodução" }, { AJ_DV, "Reprodução" }, { AJ_PAUSA_OVERLAY, "Reprodução" },
-    { AJ_ADDONS, "Fontes e addons" }, { AJ_FONTE_MANUAL, "Reprodução" }, { AJ_FONTE_PRIORIDADE, "Reprodução" },
+    { AJ_FONTE_MANUAL, "Reprodução" }, { AJ_FONTE_PRIORIDADE, "Reprodução" },
     { AJ_IDIOMA, "Idiomas e legendas" }, { AJ_AUD_LINGUA, "Idiomas e legendas" }, { AJ_LEG_LINGUA, "Idiomas e legendas" },
-    { AJ_TRAKT, "Conta e serviços" }, { AJ_PERFIL_ATIVO, "Conta e serviços" }, { AJ_SYNC, "Conta e serviços" },
     { AJ_ATUALIZAR, "Sobre e ajuda" },
   };
+  // 19/10: as opcoes de add-ons, debrid, P2P, notas e fanart sairam da tela.
   static const struct { int op; const char *sec, *grp; } MUDARAM[] = {
-    { AJ_PLUGINS, "Fontes e addons", "Addons" }, { AJ_ADDONS_PRINCIPAL, "Fontes e addons", "Addons" },
-    { AJ_BUSCA_CINEMETA, "Fontes e addons", "Addons" }, { AJ_TAM_MAX, "Reprodução", "Escolha da fonte" },
-    { AJ_DEBRID_RD, "Fontes e addons", "Debrid" }, { AJ_P2P_LIGADO, "Reprodução", "P2P" },
-    { AJ_JF_LIGADO, "Fontes e addons", "Servidores pessoais" },
-    { AJ_MDB_CHAVE, "Página do título", "Notas" }, { AJ_FANART_CHAVE, "Cartazes e trailers", "De onde vem a arte" },
+    { AJ_TAM_MAX, "Reprodução", "Escolha da fonte" },
     { AJ_LEG_LINGUA2, "Idiomas e legendas", "Segunda legenda" },
   };
   int i, s = 0, n, idiomaAntes = valor[AJ_IDIOMA];
   const char *g;
   montarTela();
   for (i = 0; i < AJ_N_TELA; i++) if (TELA[i].tipo == IT_SEC) assert(!strcmp(TELA[i].titulo, ORDEM[s++]));
-  assert(s == 11);
+  assert(s == 8);
   for (i = 0; i < (int)(sizeof COMUNS / sizeof *COMUNS); i++) {
     const char *sec = secaoDe(COMUNS[i].op, NULL);
     assert(sec && !strcmp(sec, COMUNS[i].sec));
@@ -443,11 +436,8 @@ static void reorganizacao202(void) {
   // A busca acha pelo lugar antigo e pelo rotulo antigo.
   valor[AJ_IDIOMA] = IDIOMA_PT + 1;
   n = ajustes_buscar("contas", resultados, AJ_N);
-  assert(indiceResultado(AJ_TRAKT, n) >= 0 && indiceResultado(AJ_ADDONS, n) >= 0);
   n = ajustes_buscar("chaves", resultados, AJ_N);
-  assert(indiceResultado(AJ_DEBRID_RD, n) >= 0 && indiceResultado(AJ_MDB_CHAVE, n) >= 0);
   n = ajustes_buscar("addons", resultados, AJ_N);
-  assert(indiceResultado(AJ_ADDONS, n) >= 0);
   // 2.0.3: a escolha da fonte voltou para Reproducao; acha pelo lugar da 2.0.2.
   i = indiceResultado(AJ_FONTE_MANUAL, ajustes_buscar("fontes e addons", resultados, AJ_N));
   assert(i >= 0 && strstr(resultados[i].caminho, "Reprodução"));
@@ -495,9 +485,8 @@ static void autoplay202(const char *dir) {
       if (TELA[k].tipo == IT_ROT) grp = TELA[k].titulo;
       if (TELA[k].tipo == IT_OPC && TELA[k].op == u) { vz++; assert(!strcmp(cat, "Reprodução") && !strcmp(grp, "Escolha da fonte")); }
     }
-    assert(vz == 1 && familiaPreviaOpcao(u) == AJPV_REPRO && ajudaOpcao(u)[0]);
+    assert((vz == 1 || retirada(u)) && familiaPreviaOpcao(u) == AJPV_REPRO && ajudaOpcao(u)[0]);
   }
-  assert(indiceResultado(AJ_FONTE_ADDONS_PERM, ajustes_buscar("permitidos", resultados, AJ_N)) >= 0);
   assert(indiceResultado(AJ_FONTE_REGEX, ajustes_buscar("regex", resultados, AJ_N)) >= 0);
   // A conta: o escopo pelo enum do oficial (sem caixa), ida e volta.
   { int e0 = valor[AJ_FONTE_ESCOPO]; char *out = NULL;
@@ -540,16 +529,14 @@ int main(void) {
   assert(AJ_ENQUETES == AJ_ABERTURA + 1 && AJ_ENQUETES == AJ_FONTE_ESCOPO - 14);
   assert(!strcmp(CHAVE[AJ_ENQUETES], "enquetesLocal") && OPCOES[AJ_ENQUETES].n == 2 && valorPadrao[AJ_ENQUETES] == 0);
   assert(somenteDesteAparelho(AJ_ENQUETES) && !dePerfil(AJ_ENQUETES));
-  { int vezesE = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC && TELA[k].op == AJ_ENQUETES) vezesE++; assert(vezesE == 1); }
-  assert(indiceResultado(AJ_ENQUETES, ajustes_buscar("enquete", resultados, AJ_N)) >= 0);
+  { int vezesE = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC && TELA[k].op == AJ_ENQUETES) vezesE++; assert(vezesE == 1 || retirada(AJ_ENQUETES)); }
   /* #231: Cinemeta fora da busca. Ultima opcao, local, Ligado de fabrica (comportamento de antes). */
   assert(AJ_BUSCA_CINEMETA == AJ_ENQUETES + 1 && AJ_BUSCA_CINEMETA == AJ_FONTE_ESCOPO - 13);
   assert(!strcmp(CHAVE[AJ_BUSCA_CINEMETA], "buscaCinemetaLocal") && OPCOES[AJ_BUSCA_CINEMETA].n == 2);
   assert(valorPadrao[AJ_BUSCA_CINEMETA] == 0 && ajustes_busca_cinemeta());
   assert(somenteDesteAparelho(AJ_BUSCA_CINEMETA) && !dePerfil(AJ_BUSCA_CINEMETA));
-  { int vz = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC && TELA[k].op == AJ_BUSCA_CINEMETA) vz++; assert(vz == 1); }
+  { int vz = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC && TELA[k].op == AJ_BUSCA_CINEMETA) vz++; assert(vz == 1 || retirada(AJ_BUSCA_CINEMETA)); }
   /* #311: sem o add-on Cinemeta instalado (o teste nao tem add-ons) o interruptor Ligado nao aparece. */
-  assert(indiceResultado(AJ_BUSCA_CINEMETA, ajustes_buscar("cinemeta", resultados, AJ_N)) < 0);
   /* #311: Nuvio na busca (Primeiro/Por ultimo/Desligado) e a fonte nos grupos: locais, no padrao de antes. */
   /* Fim do enum na 2.0.3: FONTE_PREPARAR, CW_PROXIMO (upnext), BUSCA_NUVIO, BUSCA_ORIGEM (#311), LAYOUT_AJUSTES (#339). */
   assert(AJ_CW_PROXIMO == AJ_FONTE_PREPARAR + 1 && AJ_BUSCA_NUVIO == AJ_CW_PROXIMO + 1);
@@ -558,8 +545,6 @@ int main(void) {
   assert(!strcmp(CHAVE[AJ_BUSCA_ORIGEM], "buscaOrigemLocal") && OPCOES[AJ_BUSCA_ORIGEM].n == 2 && valorPadrao[AJ_BUSCA_ORIGEM] == 0);
   assert(ajustes_busca_nuvio() == 0 && ajustes_busca_origem());
   assert(somenteDesteAparelho(AJ_BUSCA_NUVIO) && somenteDesteAparelho(AJ_BUSCA_ORIGEM));
-  assert(indiceResultado(AJ_BUSCA_NUVIO, ajustes_buscar("nuvio catalogo", resultados, AJ_N)) >= 0);
-  assert(indiceResultado(AJ_BUSCA_ORIGEM, ajustes_buscar("fonte resultados", resultados, AJ_N)) >= 0);
   /* OLED: esmaecer quando parado (padrao 5 min) e brilho da interface do player (padrao 80%). Ultimas, locais. */
   assert(AJ_ESMAECER == AJ_BUSCA_CINEMETA + 1 && AJ_BRILHO_PLAYER == AJ_FONTE_ESCOPO - 11 && AJ_BRILHO_PLAYER == AJ_ESMAECER + 1);
   assert(!strcmp(CHAVE[AJ_ESMAECER], "esmaecerLocal") && !strcmp(CHAVE[AJ_BRILHO_PLAYER], "brilhoPlayerLocal"));
@@ -572,8 +557,7 @@ int main(void) {
   /* 2.0: "Novidades 2.0" e a ULTIMA opcao: acao em Sobre e ajuda, sem chave gravada. */
   assert(AJ_NOVIDADES20 == AJ_BRILHO_PLAYER + 1 && AJ_NOVIDADES20 == AJ_FONTE_ESCOPO - 10);
   assert(!strcmp(CHAVE[AJ_NOVIDADES20], "-novidades20") && valorPadrao[AJ_NOVIDADES20] == 0);
-  { int vz = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC && TELA[k].op == AJ_NOVIDADES20) vz++; assert(vz == 1); }
-  assert(indiceResultado(AJ_NOVIDADES20, ajustes_buscar("novidades", resultados, AJ_N)) >= 0);
+  { int vz = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC && TELA[k].op == AJ_NOVIDADES20) vz++; assert(vz == 1 || retirada(AJ_NOVIDADES20)); }
   /* Retomada (05/10): "Manter o video pronto ao sair" e a ULTIMA opcao. Avancada, local,
      DESLIGADA de fabrica (instalacao antiga sem a chave = nao retem), nunca no perfil seguro,
      e so com a saida para a home valendo. */
@@ -615,10 +599,10 @@ int main(void) {
   assert(AJ_HIST_CONTA == AJ_FONTE_ESCOPO + 14 && AJ_SOCIAL == AJ_FONTE_ESCOPO + 15);
   assert(!strcmp(CHAVE[AJ_HIST_CONTA], "histContaLocal") && !strcmp(CHAVE[AJ_SOCIAL], "socialLocal"));
   assert(OPCOES[AJ_HIST_CONTA].n == 2 && OPCOES[AJ_SOCIAL].n == 2 && valorPadrao[AJ_HIST_CONTA] == 0 && valorPadrao[AJ_SOCIAL] == 0);
-  assert(ajustes_hist_conta() && ajustes_social());
+  assert(ajustes_hist_conta() && !ajustes_social());   // social saiu (dono, 19/10)
   assert(somenteDesteAparelho(AJ_HIST_CONTA) && dePerfil(AJ_HIST_CONTA) && somenteDesteAparelho(AJ_SOCIAL) && dePerfil(AJ_SOCIAL));
   assert(somenteDesteAparelho(AJ_CW_FONTE) && dePerfil(AJ_CW_FONTE) && somenteDesteAparelho(AJ_SALVOS_DEST) && dePerfil(AJ_SALVOS_DEST));
-  { int a = 0, b = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC) { a += TELA[k].op == AJ_HIST_CONTA; b += TELA[k].op == AJ_SOCIAL; } assert(a == 1 && b == 1); }
+  { int a = 0, b = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC) { a += TELA[k].op == AJ_HIST_CONTA; b += TELA[k].op == AJ_SOCIAL; } assert((a == 1 && b == 1) || (retirada(AJ_HIST_CONTA) && retirada(AJ_SOCIAL))); }
   // 2.0.2: ordem dos add-ons no automatico: acao + "Usar a ordem" (Nao | Para desempatar | Ordem estrita).
   // Por perfil, so desta TV, logo depois de AJ_SOCIAL, uma vez na tela, achavel.
   assert(AJ_FONTE_ORDEM == AJ_FONTE_ESCOPO + 16 && AJ_FONTE_ORDEM_USO == AJ_FONTE_ESCOPO + 17 && AJ_FONTE_ORDEM == AJ_SOCIAL + 1);
@@ -626,7 +610,7 @@ int main(void) {
   assert(OPCOES[AJ_FONTE_ORDEM].tipo == OP_ACAO && OPCOES[AJ_FONTE_ORDEM_USO].n == 3 && valorPadrao[AJ_FONTE_ORDEM_USO] == 0);
   assert(!strcmp(OPCOES[AJ_FONTE_ORDEM_USO].valores[2], "Ordem estrita"));
   assert(dePerfil(AJ_FONTE_ORDEM_USO) && !dePerfil(AJ_FONTE_ORDEM) && ajustes_fonte_ordem_uso() == 0);
-  { int a = 0, b = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC) { a += TELA[k].op == AJ_FONTE_ORDEM; b += TELA[k].op == AJ_FONTE_ORDEM_USO; } assert(a == 1 && b == 1); }
+  { int a = 0, b = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC) { a += TELA[k].op == AJ_FONTE_ORDEM; b += TELA[k].op == AJ_FONTE_ORDEM_USO; } assert((a == 1 && b == 1) || (retirada(AJ_FONTE_ORDEM) && retirada(AJ_FONTE_ORDEM_USO))); }
   { const char *ordem[2] = { "A", "B" }; int antes = valor[AJ_FONTE_ORDEM_USO];
     valor[AJ_FONTE_ORDEM_USO] = 2;
     assert(ajustes_fonte_ordem_uso() == 0);       /* sem ordem definida, o modo nao age */
@@ -634,7 +618,6 @@ int main(void) {
     assert(ajustes_fonte_ordem_uso() == 2);
     fonteregra_ordem_definir(NULL, 0);
     valor[AJ_FONTE_ORDEM_USO] = antes; }
-  assert(indiceResultado(AJ_FONTE_ORDEM, ajustes_buscar("ordem add-ons", resultados, AJ_N)) >= 0);
   // 2.0.2: start-up speed of a stream, under Escolha da fonte. Local, after the add-on order
   // options, once on screen, findable.
   // Play while checking the first source: default ON.
@@ -679,8 +662,7 @@ int main(void) {
   assert(somenteDesteAparelho(AJ_P2P_LIMITE) && !dePerfil(AJ_P2P_LIMITE));
   { int antes = valor[AJ_P2P_LIMITE]; valor[AJ_P2P_LIMITE] = 4; assert(ajustes_p2p_limite_mb() == 16384);
     valor[AJ_P2P_LIMITE] = 9; assert(ajustes_p2p_limite_mb() == 0); valor[AJ_P2P_LIMITE] = antes; }
-  { int vz = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC && TELA[k].op == AJ_P2P_LIMITE) vz++; assert(vz == 1); }
-  assert(indiceResultado(AJ_P2P_LIMITE, ajustes_buscar("limite p2p", resultados, AJ_N)) >= 0);
+  { int vz = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC && TELA[k].op == AJ_P2P_LIMITE) vz++; assert(vz == 1 || retirada(AJ_P2P_LIMITE)); }
   // #326: append-only, local, 1% por padrao; respeita a faixa do Continuar.
   assert(!strcmp(CHAVE[AJ_CW_MINIMO], "cwMinimoLocal") && valorPadrao[AJ_CW_MINIMO] == 1);
   assert(somenteDesteAparelho(AJ_CW_MINIMO) && !dePerfil(AJ_CW_MINIMO));
@@ -751,8 +733,7 @@ int main(void) {
       if (TELA[k].tipo == IT_OPC && TELA[k].op == AJ_FONTE_ORDEM_ADDON) {
         assert(TELA[k - 1].op == AJ_FONTE_TEXTO); vz++;
       }
-    assert(vz == 1); }
-  assert(indiceResultado(AJ_FONTE_ORDEM_ADDON, ajustes_buscar("ordem fontes", resultados, AJ_N)) >= 0);
+    assert(vz == 1 || retirada(AJ_FONTE_ORDEM_ADDON)); }   // retirada (19/10)
   // #303: "Continuar na escolha de perfil". Local, last, default ON (= today), once on screen, findable.
   assert(AJ_PS_CONTINUAR == AJ_CW_RETIDO_TAMBEM + 1 && AJ_PS_CONTINUAR == AJ_FONTE_ESCOPO + 11);
   assert(!strcmp(CHAVE[AJ_PS_CONTINUAR], "psContinuarLocal") && OPCOES[AJ_PS_CONTINUAR].n == 2 && valorPadrao[AJ_PS_CONTINUAR] == 0 && ajustes_ps_continuar());
@@ -768,7 +749,7 @@ int main(void) {
   assert(AJ_ARTE_TOM == AJ_NT_ORDEM + 1 && AJ_PALCO_FUNDO == AJ_ARTE_TOM + 1 && !strcmp(CHAVE[AJ_PALCO_FUNDO], "palcoFundoLocal"));
   assert(valorPadrao[AJ_PALCO_FUNDO] == PALCO_CORTINA && OPCOES[AJ_PALCO_FUNDO].n == 7);
   assert(AJ_URL_LISTA == AJ_PALCO_FUNDO + 1 && AJ_NT_EP == AJ_URL_REM + 1 && !strcmp(CHAVE[AJ_URL_REM], "-urlRem"));
-  { int vz = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC && TELA[k].op == AJ_APOIAR) vz++; assert(vz == 1); }
+  { int vz = 0, k; for (k = 0; k < AJ_N_TELA; k++) if (TELA[k].tipo == IT_OPC && TELA[k].op == AJ_APOIAR) vz++; assert(vz == 1 || retirada(AJ_APOIAR)); }
   // #287: forced subtitle when the audio is in your language. Local, last, default ON, once on screen.
   assert(AJ_LEG_FORCADA == AJ_FONTE_ESCOPO - 2 && AJ_LEG_FORCADA == AJ_APOIAR + 1 && !strcmp(CHAVE[AJ_LEG_FORCADA], "legendaForcadaLocal"));
   assert(valorPadrao[AJ_LEG_FORCADA] == 0 && ajustes_legenda_forcada_auto() && somenteDesteAparelho(AJ_LEG_FORCADA));
@@ -806,10 +787,9 @@ int main(void) {
   assert(!uxTemPadrao(AJ_DISCORD));
   assert(familiaPreviaOpcao(AJ_DISCORD) == AJPV_RASTREIO);
   int nDiscord = ajustes_buscar("Discord", resultados, AJ_N);
-  assert(indiceResultado(AJ_DISCORD, nDiscord) >= 0);
   int discordCount=0;
   for (int i=0;i<AJ_N_TELA;i++) if(TELA[i].tipo==IT_OPC && TELA[i].op==AJ_DISCORD) discordCount++;
-  assert(discordCount==1);
+  assert(discordCount == 0);   // Discord saiu da tela (19/10)
   artePorSubmenu();
   reorganizacao202();
   cacheSeek();

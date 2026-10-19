@@ -1007,6 +1007,10 @@ static int temAtividade(void) {
 }
 // A aba PODE existir neste pacote/estado (nao e o que a pessoa escolheu ver).
 static int abaExiste(int a) {
+  // A Agenda saiu do app (dono, 19/10): a aba e o "Abrir a agenda completa"
+  // eram o ultimo caminho ate a TELA_AGENDA, que o menu e os Ajustes ja
+  // perderam. Ver ajustes_menu_agenda().
+  if (a == SP_ABA_AGENDA) return 0;
   if (a == SP_ABA_SOCIAL) return temSocial();
   if (a == SP_ABA_ATIVIDADE) return temAtividade();
   return a >= SP_ABA_SALVOS && a < SP_ABA_N;

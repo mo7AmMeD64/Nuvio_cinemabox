@@ -349,6 +349,26 @@ static char *cb_catalogo(const char *tipo, const char *id, const char *termo) {
   return cb_catalogo_fileira(id);
 }
 
+// As secoes da Biblioteca, direto do manifesto: sem rede e sem espera. A busca
+// (`search`) fica de fora — quem busca e a tela de Busca do app.
+int cinemabox_catalogos(CbCatalogo *dst, int max) {
+  const char *p = js_array(CB_MANIFESTO, NULL, "catalogs");
+  int n = 0;
+  for (; p && n < max; p = js_prox(js_fim(p))) {
+    const char *f = js_fim(p);
+    char id[16] = "", tipo[8] = "", nome[64] = "";
+    js_texto(p, f, "id", id, sizeof id);
+    js_texto(p, f, "type", tipo, sizeof tipo);
+    js_texto(p, f, "name", nome, sizeof nome);
+    if (!id[0] || !tipo[0] || !nome[0] || !strcmp(id, "search")) continue;
+    snprintf(dst[n].id, sizeof dst[n].id, "%s", id);
+    snprintf(dst[n].tipo, sizeof dst[n].tipo, "%s", tipo);
+    snprintf(dst[n].titulo, sizeof dst[n].titulo, "%s", nome);
+    n++;
+  }
+  return n;
+}
+
 // ---------------------------------------------------------------- ficha
 typedef struct { long sid; char *corpo; } CbEstacao;
 static void *cb_estacao_fio(void *u) {

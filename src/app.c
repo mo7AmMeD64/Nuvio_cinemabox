@@ -4273,13 +4273,10 @@ void app_evento(const SDL_Event *e) {
   // do dono. Uma tecla que vai direto elimina a classe inteira de acidente.
   // Android Guide/Menu and Tizen TV Guide also map to F10. During playback,
   // the live player or mini guide handles it below, preserving modal priority.
-  if (e->type == SDL_KEYDOWN && e->key.keysym.sym == SDLK_F10 &&
-      login_concluido() && perfilsel_concluido() && !player_aberto()) {
-    menu_fechar();
-    trocarTela(TELA_GUIA);
-    menu_definir_destino(MENU_GUIA);
-    return;
-  }
+  //
+  // 19/10: o Guia TV (IPTV) saiu do app — a tecla nao abre mais nada. O bloco
+  // antigo levava direto a TELA_GUIA por F10 (unico atalho que ainda alcancava
+  // a tela depois de o menu e os Ajustes perderem a entrada).
 
   // O login vem antes de tudo, inclusive do player: enquanto nao ha conta o
   // resto do app nao tem dado nenhum para operar. A escolha de perfil vem logo

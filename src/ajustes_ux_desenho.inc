@@ -884,36 +884,8 @@ static void ajDesenharIndice(void) {
     y += 62.0f;
   }
   if (indRecorte) gfx_sem_recorte();
-  // Rodape: quem esta usando (as preferencias "Conta/perfil" sao dele).
-  { const ContaPerfil *p = perfis_item_ativo();
-    const char *nome = p && p->nome[0] ? p->nome : NULL;
-    char ini[8], nb[80];
-    float cy = ilha.y + ilha.h - 14.0f - 6.0f - 21.0f;
-    float ax = ilha.x + 30.0f;
-    float cr = 0.486f, cg = 0.361f, cb = 1.0f;
-    TxtLinha l, n, s;
-    if (nome) {
-      unsigned char c0 = (unsigned char)nome[0];
-      int nb0 = c0 >= 0xF0 ? 4 : c0 >= 0xE0 ? 3 : c0 >= 0xC0 ? 2 : 1;
-      snprintf(ini, sizeof ini, "%.*s", nb0, nome);
-      if (ini[0] >= 'a' && ini[0] <= 'z') ini[0] = (char)(ini[0] - 32);
-      snprintf(nb, sizeof nb, "%s", nome);
-    } else {
-      snprintf(ini, sizeof ini, "%d", perfis_ativo());
-      snprintf(nb, sizeof nb, i18n("Perfil %d"), perfis_ativo());
-    }
-    if (p && p->corHex[0] == '#' && strlen(p->corHex) >= 7) {
-      unsigned v = (unsigned)strtoul(p->corHex + 1, NULL, 16);
-      cr = ((v >> 16) & 255) / 255.0f; cg = ((v >> 8) & 255) / 255.0f; cb = (v & 255) / 255.0f;
-    }
-    gfx_cor((GfxRect){ ax, cy - 20.0f, 40, 40 }, 0.5f, cr, cg, cb, 1);
-    l = txt_linha(TXT_ILHA_INICIAL, ini, 255, 255, 255, 255);
-    txt_desenhar(l, ax + (40 - l.w) * 0.5f, cy - l.h * 0.5f);
-    n = txt_linha_corta(TXT_AJ_SEG, nb, AJ_TX, ilha.w - 110.0f);
-    s = ajTxt(TXT_ILHA_APOIO, "Conta/perfil");
-    { float ty = cy - (n.h + 2 + s.h) * 0.5f;
-      txt_desenhar(n, ax + 54.0f, ty);
-      txt_desenhar_alpha(s, ax + 54.0f, ty + n.h + 2, 0.45f); } }
+  // Sem conta: o rodape do indice ("quem esta usando") saiu com o login
+  // (dono, 19/10). A escolha de perfil continua em Tela inicial.
 }
 
 // --- PECAS DA LINHA ---------------------------------------------------------------

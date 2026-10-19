@@ -100,6 +100,23 @@ int main(void) {
   assert(strstr(r, "{\"name\":\"subtitles\""));
   free(r);
 
+  // Secoes da Biblioteca: os catalogos do manifesto, sem a busca e sem rede.
+  // A ordem e a do manifesto (e a ordem em que a Biblioteca as mostra).
+  { CbCatalogo cat[CB_CAT_MAX];
+    int n = cinemabox_catalogos(cat, CB_CAT_MAX), i, busca = 0;
+    assert(n == 10);
+    for (i = 0; i < n; i++) {
+      assert(cat[i].id[0] && cat[i].titulo[0]);
+      assert(!strcmp(cat[i].tipo, "movie") || !strcmp(cat[i].tipo, "series"));
+      if (!strcmp(cat[i].id, "search")) busca++;
+    }
+    assert(!busca);
+    assert(!strcmp(cat[0].id, "144") && !strcmp(cat[0].titulo, "Featured"));
+    assert(!strcmp(cat[n - 1].id, "108") && !strcmp(cat[n - 1].tipo, "series"));
+    // Teto respeitado (a Biblioteca passa CB_CAT_MAX).
+    assert(cinemabox_catalogos(cat, 3) == 3);
+  }
+
   // Fileira: cartao MOVIE vira cb:<id>; GENERO e descartado; poster obrigatorio.
   r = pedir("cinemabox://cb/catalog/movie/104.json", &nosso);
   assert(strstr(r, "\"id\":\"cb:123\""));

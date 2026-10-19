@@ -635,7 +635,7 @@ static void montarCanais(const char *alvo) {
 }
 
 static void montarCatalogos(const char *alvo) {
-  int r, achou = 0, i;
+  int r, achou = 0;
   char t[300];
   for (r = 0; r < cat_n_fileiras() && achou < 3; r++) {
     const CatFileira *cf = cat_fileira(r);
@@ -653,21 +653,8 @@ static void montarCatalogos(const char *alvo) {
     snprintf(l->icone, sizeof l->icone, "aj_rows-3");
     snprintf(l->chave, sizeof l->chave, "f|%.90s", cf->chave);
   }
-  for (i = 0, achou = 0; i < addons_n() && achou < 2; i++) {
-    const char *nm = addons_nome(i);
-    Linha *l;
-    if (!nm || !nm[0]) continue;
-    busca_normalizar(nm, t, sizeof t);
-    if (pontuar(t, alvo) < 60) continue;
-    if (!achou) cabecalho(i18n("Addons"));
-    if (!(l = nova(L_ADDON))) return;
-    achou++;
-    l->ref = i;
-    snprintf(l->t1, sizeof l->t1, "%s", nm);
-    snprintf(l->t2, sizeof l->t2, "%s", i18n(addons_ativo(i) ? "Addon ativo" : "Addon desligado"));
-    snprintf(l->icone, sizeof l->icone, "addon");
-    snprintf(l->chave, sizeof l->chave, "a|%.90s", nm);
-  }
+  // 19/10: sem add-ons de terceiros (o CinemaBox e interno e entra pela home),
+  // a busca nao oferece mais a tela de Addons. Ver L_ADDON/SPOT_ADDONS.
 }
 
 // Campo vazio: pesquisas recentes e "Em alta" (os primeiros da primeira

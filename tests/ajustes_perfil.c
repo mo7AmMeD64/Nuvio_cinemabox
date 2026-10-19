@@ -71,7 +71,7 @@ int main(void) {
   assert(ajustes_perfil_restaurar(2) == 1);
   assert(valor[AJ_HERO] == 0);
   assert(valor[AJ_CW_FONTE] == AJ_CWF_CONTA && valor[AJ_SALVOS_DEST] == AJ_SALVOS_LOCAL);
-  assert(ajustes_hist_conta() && ajustes_social());
+  assert(ajustes_hist_conta() && !ajustes_social());   // social saiu: sempre 0 (dono, 19/10)
   assert(!ajustes_ocultar_filmes_vistos());
 
   // Session reset clears the outgoing preference; reload restores its owner.

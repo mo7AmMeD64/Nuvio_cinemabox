@@ -6808,10 +6808,16 @@ static void desenhaArteCard(GfxRect card, TipoFileira tipo, const char *caminho,
     // GFX_CARD dispara com a moldura 25% fora da arte, e qualquer arte (fundo
     // 16:9 ou cartaz) ficava no meio do card com faixas cinza dos lados (dono,
     // 03/10: "tem que colocar uma imagem cropada para preencher tudo").
-    gfx_card_forcar_cover_atual = (tipo == FILEIRA_DESTAQUE_QUADRADO ||
-                                   tipo == FILEIRA_RETORNO ||
-                                   tipo == FILEIRA_HEROI ||
-                                   tipo == FILEIRA_POSTER_GRANDE) ? 1.0f : 0.0f;
+    // A ARTE SEMPRE PREENCHE O CARTAO (dono, 19/10): com as fileiras todas
+    // deitadas (16:9), o poster retrato caia no contain do GFX_CARD e o card
+    // aparecia com faixas do esqueleto dos lados — "alguns filmes com arte
+    // vertical". Mesmo limite do shader (gfx.c:493) para o corte ser um so.
+    { float ra = (card.w / card.h) / tex_aspecto(caminho);
+      gfx_card_forcar_cover_atual = (tipo == FILEIRA_DESTAQUE_QUADRADO ||
+                                     tipo == FILEIRA_RETORNO ||
+                                     tipo == FILEIRA_HEROI ||
+                                     tipo == FILEIRA_POSTER_GRANDE ||
+                                     ra < 0.80f || ra > 1.25f) ? 1.0f : 0.0f; }
     gfx_tex_aspect_atual = tex_aspecto(caminho);
     // O esqueleto fica por baixo so enquanto a arte esvanece: um
     // desenho do tamanho do card por ~220 ms, e depois nenhum.
