@@ -1,0 +1,77 @@
+// Vincular o Simkl na propria TV, pelo fluxo de PIN do Simkl.
+//
+// FLUXO (o mesmo do app web, em js/data/repository/simklAuthService.js), e ele
+// NAO e igual ao do Trakt — sao GETs, e nao ha client_secret:
+//   GET https://api.simkl.com/oauth/pin?client_id=..&app-name=..&app-version=..
+//     -> {"result":"OK","user_code":"ABC123","verification_url":"...",
+//         "expires_in":900}
+//   GET /oauth/pin/<user_code>?client_id=..   (mesma query)
+//     -> {"result":"KO"}                        ainda nao autorizado
+//     -> {"result":"OK","access_token":"..."}   pronto
+//
+// O QUE CONSOME ISTO HOJE: a aba "Listas" da Biblioteca (src/listas.c), que le
+// os CINCO ESTADOS de acompanhamento do Simkl (/sync/all-items/<tipo>/<estado>)
+// com o token daqui. O Simkl nao tem listas nomeadas na API — nao existe
+// equivalente a /users/me/lists do Trakt —, entao "listas do Simkl" quer dizer
+// esses cinco estados, e a tela diz isso em vez de fingir outra coisa.
+// Desde o issue #110 o token tambem alimenta src/simkl.c: a fileira
+// "Continuar assistindo" (fonte "Simkl", ou "Ambas" com vinculo) e o "+" com
+// "Onde o + salva" em "Plan to Watch do Simkl".
+// Vincular aqui continua servindo tambem para a CREDENCIAL CHEGAR NA CONTA, e
+// dali para o app web e o celular.
+// LIMITE CONHECIDO, e diferente do Trakt: aqui o pedido pendente NAO sobrevive
+// a um reinicio do app — o PIN vive so na memoria. No Trakt isso foi corrigido
+// porque mordeu de verdade (o dono autorizou e o app tinha reiniciado no meio);
+// aqui fica anotado em vez de implementado — quando foi escrito, nada neste
+// app consumia Simkl; hoje ha consumidores (ver acima), mas o PIN pendente
+// continua raro. Se virar problema, e o mesmo remendo do traktauth.c.
+#ifndef NV_SIMKLAUTH_H
+#define NV_SIMKLAUTH_H
+#include <stddef.h>
+
+typedef enum {
+  SMK_PARADO = 0,
+  SMK_PEDINDO,
+  SMK_AGUARDANDO,
+  SMK_LIGADO,
+  SMK_ERRO
+} SmkEstado;
+
+// Veredito de uma resposta do poll (ver simklauth_classificar em simklauth.c).
+typedef enum { SMK_POLL_ESPERA = 0, SMK_POLL_OK, SMK_POLL_LENTO, SMK_POLL_NEGADO, SMK_POLL_FALHA } SmkPoll;
+SmkPoll simklauth_classificar(int st, const char *corpo, char *tk, unsigned tam);
+int simklauth_restante_s(void);   // segundos ate expirar; -1 sem codigo
+
+void simklauth_comecar(void);
+void simklauth_passo(unsigned agoraMs);
+
+SmkEstado   simklauth_estado(void);
+const char *simklauth_codigo(void);
+const char *simklauth_url(void);
+const char *simklauth_erro(void);
+
+void simklauth_cancelar(void);
+int  simklauth_carregar(void);    // le o token guardado; 1 quando havia
+// Token de acesso, ou "" quando nao ha vinculo. Existe desde que a Biblioteca
+// passou a ler as listas do Simkl (src/listas.c) — ate entao nada neste app
+// consumia Simkl e o token so servia para chegar a conta.
+const char *simklauth_token(void);
+// Copia sob trava + geracao: consultas com varios pedidos nao misturam contas.
+// dst NULL so le a geracao; zero nao e usado. Nunca guardar/logar a copia.
+unsigned long long simklauth_credencial_copiar(char *dst, size_t tam);
+// Esquece o vinculo de TODOS os perfis (logout).
+void simklauth_esquecer(void);
+// Disconnect only the active profile.
+void simklauth_desconectar(void);
+// O Simkl recusou (401) um pedido que saiu com a credencial de geracao `cred`
+// (simklauth_credencial_copiar): desfaz o vinculo do perfil ATUAL so se ele
+// ainda e essa credencial. Devolve 1 quando desfez; 0 = o 401 era de outra.
+int simklauth_invalidar_se(unsigned long long cred);
+// POR PERFIL, como o Trakt (simkl-p<N>.txt; simkl.txt antigo vira o do perfil
+// 1). carregar_perfil escolhe o perfil e le; trocar_perfil faz o mesmo so
+// quando o perfil mudou e devolve 1 quando o Simkl estava ou ficou ligado —
+// quem chama esquece as caches de simkl.c e remonta a home.
+int  simklauth_carregar_perfil(int perfil);
+int  simklauth_trocar_perfil(int perfil);
+
+#endif

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+: o sistema mostra a SplashScreen dele antes da janela; aqui
+         ela e NEUTRA (2.0 N1b): so o fundo da abertura, sem icone nem logo (o logo e
+         escolha do usuario e so o app o conhece). Depois dela vem
+         o windowBackground (drawable/abertura.xml) ate o primeiro quadro. -->
+    <style name="Tema.Nuvio" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowBackground">@drawable/abertura</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowSplashScreenBackground">@color/nuvio_abertura</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+    </style>
+</resources>

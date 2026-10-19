@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ilha do relógio</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0c0e;--fg:#f3f2ef;--mut:#a3a19c;--ac:#5aa2ff;--ok:#66db8f;--er:#ff736b}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0b0c0e;--fg:#f3f2ef;--mut:#a3a19c}}
+:root[data-theme="dark"]{--bg:#0b0c0e;--fg:#f3f2ef;--mut:#a3a19c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:1400px;margin:0 auto;padding:32px 16px 64px}
+header h1{font-size:30px;margin:0 0 8px;letter-spacing:-.01em}
+header p{color:var(--mut);margin:0 0 10px;font-size:15px;line-height:1.55;max-width:900px}
+.regras{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 18px;padding:0;list-style:none}
+.regras li{font-size:13px;color:var(--mut);background:rgba(255,255,255,.06);padding:7px 12px;border-radius:999px}
+.barra{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:14px;color:var(--mut);border-bottom:1px solid rgba(255,255,255,.06);margin-bottom:26px}
+.seg2{display:inline-flex;gap:4px;padding:4px;border-radius:999px;background:rgba(255,255,255,.08)}
+.seg2 button{font:inherit;font-size:13px;font-weight:600;border:0;background:none;color:var(--mut);padding:7px 14px;border-radius:999px;cursor:pointer}
+.seg2 button[aria-pressed="true"]{background:rgba(255,255,255,.16);color:var(--fg)}
+.cores{display:inline-flex;gap:8px;align-items:center}
+.cores button{width:24px;height:24px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0}
+.cores button[aria-pressed="true"]{border-color:var(--fg)}
+.conta{margin-left:auto;font-size:13px}
+.conta b{color:var(--fg)}
+section{margin:0 0 54px}
+section>h2{font-size:21px;margin:0 0 4px;letter-spacing:-.01em}
+section>p{color:var(--mut);margin:0 0 18px;font-size:14px;line-height:1.5;max-width:900px}
+.grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(560px,100%),1fr));gap:30px 26px}
+.grade.larga{grid-template-columns:1fr}
+.grade.media{grid-template-columns:repeat(auto-fill,minmax(min(640px,100%),1fr))}
+figure{margin:0}
+.quadro{position:relative;width:100%;overflow:hidden;border-radius:12px;background:#000}
+.quadro>.tv{position:absolute;left:0;top:0;transform-origin:0 0}
+figcaption{margin-top:10px;font-size:13.5px;line-height:1.5;color:var(--mut)}
+figcaption b{color:var(--fg);font-weight:600;font-size:14.5px}
+.selo{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px;border-radius:999px;margin-right:6px;vertical-align:1px}
+.selo.existe{background:rgba(255,255,255,.12);color:#e6e4df}
+.selo.novo{background:var(--ac);color:#0d0f13}
+.selo.sinal{background:none;color:#e9b44c;box-shadow:inset 0 0 0 1.5px #e9b44c}
+
+/* ---------- a TV ---------- */
+.tv{width:1920px;height:1080px;position:relative;overflow:hidden;font-family:'Inter',system-ui,sans-serif;color:#f3f2ef;-webkit-font-smoothing:antialiased;
+  background:
+   radial-gradient(38% 46% at 74% 34%,rgba(232,170,104,.70),rgba(232,170,104,0) 70%),
+   radial-gradient(30% 40% at 90% 66%,rgba(150,92,62,.75),rgba(150,92,62,0) 72%),
+   radial-gradient(36% 30% at 42% 14%,rgba(200,222,236,.55),rgba(200,222,236,0) 72%),
+   linear-gradient(180deg,#8fa0ad 0%,#c4a988 44%,#7a5c45 72%,#3a2c22 100%)}
+.tv.b2{background:
+   radial-gradient(40% 50% at 70% 30%,rgba(90,190,200,.55),rgba(90,190,200,0) 70%),
+   radial-gradient(34% 44% at 88% 72%,rgba(40,90,120,.8),rgba(40,90,120,0) 72%),
+   linear-gradient(180deg,#24414f 0%,#2f5b63 45%,#182a33 100%)}
+.tv.b3{background:
+   radial-gradient(40% 50% at 72% 32%,rgba(180,120,230,.55),rgba(180,120,230,0) 70%),
+   radial-gradient(30% 40% at 86% 70%,rgba(230,110,120,.55),rgba(230,110,120,0) 72%),
+   linear-gradient(180deg,#3a2f52 0%,#5a3e5e 50%,#1e1828 100%)}
+.tv.b4{background:radial-gradient(120% 90% at 30% 15%,#1b1d23,#0b0c0e 70%)}
+.tv .veu{position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.50),rgba(0,0,0,0) 52%),linear-gradient(180deg,rgba(0,0,0,.12),rgba(0,0,0,0) 30%,rgba(0,0,0,0) 60%,rgba(0,0,0,.55))}
+.tv .veu.forte{background:rgba(0,0,0,.30)}
+.lbl{position:absolute;font-size:17px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.78);text-shadow:0 1px 8px rgba(0,0,0,.7)}
+.lbl.min{font-size:24px;letter-spacing:.04em;text-transform:none;font-weight:600}
+
+/* MATERIAL DA ILHA: miolo escuro translucido, luz no canto, sombra curta, sem contorno */
+.ilha{position:absolute;background:rgba(14,15,18,.80);-webkit-backdrop-filter:blur(26px) saturate(1.15);backdrop-filter:blur(26px) saturate(1.15);box-shadow:0 14px 40px rgba(0,0,0,.36);overflow:hidden;color:#f3f2ef}
+.ilha::before{content:"";position:absolute;inset:0;background:radial-gradient(85% 150% at 25% -90%,rgba(255,255,255,.12),rgba(255,255,255,0) 70%);pointer-events:none}
+.ilha.l-ac::before{background:radial-gradient(85% 150% at 25% -90%,color-mix(in srgb,var(--ac) 46%,transparent),transparent 70%)}
+.ilha.l-ok::before{background:radial-gradient(85% 150% at 25% -90%,rgba(102,219,143,.40),transparent 70%)}
+.ilha.l-er::before{background:radial-gradient(85% 150% at 25% -90%,rgba(255,115,107,.44),transparent 70%)}
+.ilha>*{position:relative}
+body[data-material="solido"] .ilha,.tv.solido .ilha{background:#15161a;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+
+/* a pilula */
+.pl{top:36px;left:96px;height:64px;border-radius:32px;padding:0 24px 0 22px;display:flex;align-items:center;gap:12px;font-size:24px;font-weight:500;white-space:nowrap}
+.pl.dir{left:auto;right:64px}
+.pl.fech{height:52px;border-radius:26px;font-size:27px;font-weight:600;letter-spacing:.01em;padding:0 24px}
+.pl .m{color:rgba(243,242,239,.55);font-size:19px;font-weight:500}
+.pl .t{font-weight:600}
+.ic{width:28px;height:28px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.c-ac{color:var(--ac)} .c-ok{color:var(--ok)} .c-er{color:var(--er)} .c-in{color:rgba(243,242,239,.86)}
+.tk{display:inline-flex;align-items:center;gap:8px;margin-left:6px;font-size:16px;font-weight:600;color:rgba(243,242,239,.55)}
+.tk i{width:38px;height:20px;border-radius:10px;background:#2f6fe0;display:block}
+.fio{width:1.5px;height:26px;background:rgba(255,255,255,.22);flex:none}
+.mini{width:30px;height:44px;border-radius:6px;flex:none;background:linear-gradient(160deg,#c48d4c,#3a2a18)}
+.mini.g2{background:linear-gradient(160deg,#5fb3c4,#123038)}
+.mini.g3{background:linear-gradient(160deg,#b98be6,#2b1d3c)}
+.mini.g4{background:linear-gradient(160deg,#e07a5f,#3d1a12)}
+.av{border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff}
+.av.s36{width:36px;height:36px;font-size:16px}
+.av.a1{background:linear-gradient(140deg,#ff8a65,#c2185b)}
+.av.a2{background:linear-gradient(140deg,#4fc3f7,#3949ab)}
+.av.a3{background:linear-gradient(140deg,#81c784,#00796b)}
+.av.a4{background:linear-gradient(140deg,#ffd54f,#ef6c00)}
+.duo{display:flex;align-items:center;flex:none}
+.duo .av{box-shadow:0 0 0 3px rgba(14,15,18,.9)}
+.duo .mini{margin-left:-8px}
+.ponto{width:12px;height:12px;border-radius:50%;background:var(--ac);flex:none;box-shadow:0 0 0 5px color-mix(in srgb,var(--ac) 22%,transparent)}
+.nl{width:10px;height:10px;border-radius:50%;background:var(--ac);flex:none;margin-left:2px}
+.vivo{width:10px;height:10px;border-radius:50%;background:#ff5a52;flex:none}
+.tr{position:absolute;left:22px;right:24px;bottom:8px;height:3px;border-radius:2px;background:rgba(255,255,255,.12)}
+.tr i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--ac)}
+.col{display:flex;flex-direction:column;gap:6px;justify-content:center}
+.bar{height:3px;border-radius:2px;background:rgba(255,255,255,.14);position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--ac)}
+.gota{top:46px;left:96px;width:31px;height:31px;border-radius:50%}
+.cont{position:absolute;right:-6px;top:-6px}
+.mais{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:26px;padding:0 8px;border-radius:13px;background:rgba(255,255,255,.12);font-size:15px;font-weight:700;color:rgba(243,242,239,.8);margin-left:4px}
+
+/* o modal: a mesma pilula crescida */
+.md{top:36px;left:96px;width:1120px;border-radius:30px;padding:32px}
+.md.dir{left:auto;right:64px}
+.md .lin{display:flex;gap:32px}
+.arte{width:480px;height:270px;border-radius:18px;flex:none;position:relative;overflow:hidden}
+.arte.g1{background:radial-gradient(60% 70% at 30% 30%,#d9a066,transparent 70%),linear-gradient(150deg,#6d5636,#21180f 75%)}
+.arte.g2{background:radial-gradient(60% 70% at 70% 30%,#7ad0dd,transparent 70%),linear-gradient(150deg,#21535e,#0b1a1f 75%)}
+.arte.g3{background:radial-gradient(60% 70% at 40% 40%,#c09ae8,transparent 70%),linear-gradient(150deg,#47325f,#130d1a 75%)}
+.arte.g4{background:radial-gradient(60% 70% at 60% 30%,#ef9a7a,transparent 70%),linear-gradient(150deg,#6b2c1d,#1a0b07 75%)}
+.arte .av{position:absolute;left:18px;bottom:18px;width:64px;height:64px;font-size:26px;box-shadow:0 0 0 4px rgba(14,15,18,.85)}
+.dir-col{flex:1;display:flex;flex-direction:column;min-width:0}
+.kick{font-size:15px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(243,242,239,.5);display:flex;align-items:center;gap:10px}
+.logo{font-size:52px;font-weight:800;letter-spacing:-.02em;line-height:1.05;margin-top:6px}
+.ep{font-size:23px;font-weight:600;margin-top:12px}
+.sin{font-size:19px;line-height:1.5;color:rgba(243,242,239,.62);margin-top:10px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.est{margin-top:auto;display:flex;align-items:center;gap:16px;font-size:18px;color:rgba(243,242,239,.66)}
+.est .bar{flex:1;height:4px}
+.fala{margin-top:14px;font-size:21px;line-height:1.45;color:rgba(243,242,239,.86);padding-left:18px;border-left:3px solid rgba(255,255,255,.16)}
+.botoes{display:flex;align-items:center;gap:14px;margin-top:24px}
+.bt{height:60px;border-radius:30px;border:0;font:inherit;font-size:21px;font-weight:600;padding:0 28px;display:inline-flex;align-items:center;gap:10px;background:rgba(255,255,255,.08);color:rgba(243,242,239,.9)}
+.bt .ic{width:22px;height:22px}
+.bt.foco{background:var(--ac);color:#0d0f13;box-shadow:0 8px 28px color-mix(in srgb,var(--ac) 35%,transparent)}
+.bt.sem{background:none}
+body[data-material="solido"] .bt:not(.foco):not(.sem),.tv.solido .bt:not(.foco):not(.sem){background:#24262c}
+.salvos{margin-left:auto;font-size:18px;color:rgba(243,242,239,.55);display:flex;align-items:center;gap:8px}
+.rosto{width:150px;height:150px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:60px;font-weight:700}
+.chips{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.chips span{font-size:17px;font-weight:600;padding:8px 16px;border-radius:999px;background:rgba(255,255,255,.08);color:rgba(243,242,239,.78)}
+.nota{font-size:17px;color:rgba(243,242,239,.48);margin-top:14px}
+.lista{margin:12px 0 0;padding:0;list-style:none;font-size:19px;line-height:1.5;color:rgba(243,242,239,.72)}
+.lista li{padding-left:22px;position:relative}
+.lista li::before{content:"";position:absolute;left:4px;top:12px;width:7px;height:7px;border-radius:50%;background:rgba(243,242,239,.4)}
+.tile{width:150px;height:150px;border-radius:36px;flex:none;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.08)}
+.tile .ic{width:64px;height:64px;stroke-width:1.6}
+
+/* a home de fundo (quadros inteiros) */
+.hero-t{position:absolute;left:96px;top:520px;width:820px}
+.hero-t .k{font-size:17px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(243,242,239,.6)}
+.hero-t .n{font-size:110px;font-weight:800;letter-spacing:-.03em;line-height:1;margin-top:10px;color:#f5c542;text-shadow:0 4px 30px rgba(0,0,0,.4)}
+.hero-t .s{font-size:22px;line-height:1.5;color:rgba(243,242,239,.78);margin-top:16px}
+.fil{position:absolute;left:96px;right:0;top:842px}
+.fil .h{font-size:26px;font-weight:700;margin-bottom:16px}
+.fil .cs{display:flex;gap:22px}
+.fil .cs i{width:340px;height:192px;border-radius:16px;display:block;flex:none;background:linear-gradient(150deg,rgba(255,255,255,.22),rgba(255,255,255,.05))}
+.fil .cs i:nth-child(2){background:linear-gradient(150deg,#5a8fa0,#1d3640)}
+.fil .cs i:nth-child(3){background:linear-gradient(150deg,#a0705a,#3d2418)}
+.fil .cs i:nth-child(4){background:linear-gradient(150deg,#7d6aa8,#271f3a)}
+.fil .cs i:nth-child(5){background:linear-gradient(150deg,#5aa06d,#173322)}
+.menup{top:36px;left:48px;width:64px;height:64px;border-radius:32px;display:flex;align-items:center;justify-content:center}
+.ajtit{position:absolute;left:96px;top:44px;font-size:46px;font-weight:800;letter-spacing:-.02em}
+.seta{position:absolute;font-size:30px;color:rgba(255,255,255,.7);text-shadow:0 1px 8px rgba(0,0,0,.6)}
+</style>
+</head>
+<body data-material="vidro">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+ <symbol id="i-sino" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/><path d="M10 21h4"/></symbol>
+ <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+ <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></symbol>
+ <symbol id="i-alerta" viewBox="0 0 24 24"><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+ <symbol id="i-userplus" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M19 8v6M16 11h6"/></symbol>
+ <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4a4 4 0 0 1 0 8"/><path d="M22 21a7 7 0 0 0-4-6.3"/></symbol>
+ <symbol id="i-tv" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></symbol>
+ <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></symbol>
+ <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol>
+ <symbol id="i-wifioff" viewBox="0 0 24 24"><path d="M2 2l20 20"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 5.2-2.8"/><path d="M19 12.9a10 10 0 0 0-2-1.5"/><path d="M2 8.8a15 15 0 0 1 4.2-2.6"/><path d="M22 8.8A15 15 0 0 0 11 5"/><path d="M12 20h.01"/></symbol>
+ <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M5 12.9a10 10 0 0 1 14 0"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><path d="M2 8.8a15 15 0 0 1 20 0"/><path d="M12 20h.01"/></symbol>
+ <symbol id="i-puzzle" viewBox="0 0 24 24"><path d="M10 3h4v3a2 2 0 1 0 4 0V3h3v7h-3a2 2 0 1 0 0 4h3v7h-7v-3a2 2 0 1 0-4 0v3H3v-7h3a2 2 0 1 0 0-4H3V3z"/></symbol>
+ <symbol id="i-cloudoff" viewBox="0 0 24 24"><path d="M2 2l20 20"/><path d="M5.8 8.6A5 5 0 0 0 7 18h10"/><path d="M21 15.5A4 4 0 0 0 17.5 10h-1A6 6 0 0 0 9.4 5.5"/></symbol>
+ <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .5-8h-1A6 6 0 0 0 5 11a3.5 3.5 0 0 0 2 7z"/></symbol>
+ <symbol id="i-unlink" viewBox="0 0 24 24"><path d="M9 17H7a5 5 0 0 1 0-10h2"/><path d="M15 7h2a5 5 0 0 1 4 8"/><path d="M8 12h3"/><path d="M2 2l20 20"/></symbol>
+ <symbol id="i-sync" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></symbol>
+ <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+ <symbol id="i-mega" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M17 9a4 4 0 0 1 0 6"/><path d="M20 6.5a8 8 0 0 1 0 11"/></symbol>
+ <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4v16l13-8z" fill="currentColor"/></symbol>
+ <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+ <symbol id="i-book" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z"/></symbol>
+ <symbol id="i-relogio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+ <symbol id="i-rec" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></symbol>
+ <symbol id="i-cpu" viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><path d="m5.6 5.6 2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/></symbol>
+ <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+ <symbol id="i-seta" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></symbol>
+</svg>
+<main>
+<header>
+<h1>Ilha do relógio: o lugar onde o app fala</h1>
+<p>Todos os estados da pílula, os que já existem no app (lidos em <code>src/ilha.c</code> e chamadores) e os novos possíveis. Escala de TV 1920×1080 reduzida; cada quadro mostra só o pedaço da tela onde a ilha está. Embaixo de cada estado: o que dispara e se já existe.</p>
+<ul class="regras"><li>Miolo escuro translúcido ou sólido</li><li>Luz no canto (na cor do tipo quando avisa)</li><li>Sombra curta, sem contorno, raio grande</li><li>Foco de linha = superfície clara</li><li>Botão em foco = pílula cheia no acento</li><li>Acento só para estado</li><li>Fechada 52 px · aberta 64 px · modal 1120 px</li></ul>
+</header>
+<div class="barra">
+ <span>Material: <span class="seg2" role="group" aria-label="Material"><button aria-pressed="true" data-m="vidro">Vidro</button><button aria-pressed="false" data-m="solido">Sólido</button></span></span>
+ <span class="cores">Destaque: <button aria-label="Azul" aria-pressed="true" style="background:#5aa2ff" data-c="#5aa2ff"></button><button aria-label="Dourado" aria-pressed="false" style="background:#e8b04f" data-c="#e8b04f"></button><button aria-label="Rosa" aria-pressed="false" style="background:#ff6f91" data-c="#ff6f91"></button><button aria-label="Verde-água" aria-pressed="false" style="background:#3fd3c6" data-c="#3fd3c6"></button></span>
+ <span><span class="selo existe">existe</span>já está no app · <span class="selo novo">novo</span>dado já existe, falta ligar · <span class="selo sinal">sinal novo</span>precisa de dado ou serviço</span>
+ <span class="conta" id="conta"></span>
+</div>
+
+<!-- ============================================================ 1 -->
+<section><h2>1. Repouso</h2><p>Sem nada a dizer, a pílula é o relógio. Só na home e só com Ajustes › Relógio na tela ligado (<code>relogioCabe</code>, app.c:3427).</p>
+<div class="grade">
+<figure data-estado="existe"><div class="quadro" data-base="900" data-h="130"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl fech">20:19</div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Relógio</b><br>Home de pé, relógio ligado. HH:MM, 52 px de altura.</figcaption></figure>
+
+<figure data-estado="existe"><div class="quadro" data-base="900" data-h="130"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl fech" style="overflow:hidden"><span style="position:relative;display:inline-block;width:76px;height:52px;overflow:hidden"><span style="position:absolute;left:0;top:-14px;opacity:.28">20:19</span><span style="position:absolute;left:0;top:19px;opacity:.85">20:20</span></span></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Virada do minuto</b><br>O número velho sobe e some, o novo vem de baixo, em 320 ms (ilha.c:391-397).</figcaption></figure>
+
+<figure data-estado="existe"><div class="quadro" data-base="900" data-h="130"><div class="tv"><div class="veu"></div>
+ <div class="ilha gota"></div><div class="lbl min" style="left:150px;top:50px">nascendo / sumindo</div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Gota</b><br>Fora do lugar do relógio, a pílula encolhe para uma gota e apaga; nasce dela quando um aviso chega (ilha.c:790-792).</figcaption></figure>
+</div></section>
+
+<!-- ============================================================ 2 -->
+<section><h2>2. Avisos curtos</h2><p>A pílula cresce com mola, mostra ícone e frase, e volta ao relógio quando o prazo vence. Aparece em qualquer tela fora do player, mesmo sem relógio. A tecla azul com “abre” indica que o aviso leva a algum lugar.</p>
+<div class="grade">
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-ok"><span class="av s36 a3">C</span><span>Você e <span class="t">Carla</span> agora são amigos</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Amizade nova</b><br>A lista de <code>recomenda_contatos()</code> ganhou alguém entre dois ciclos (10 min). OK abre o perfil. 6 s.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-ac"><span class="av s36 a2">B</span><span><span class="t">Bruno</span> quer ser seu amigo</span><span class="tk"><i></i>abre</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Pedido de amizade</b><br><code>recomenda_n_pedidos()</code> subiu (lido a cada 10 min). AZUL abre o modal Aceitar / Recusar. 10 s.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-ac"><span class="duo"><span class="av s36 a1">A</span><span class="mini"></span></span><span><span class="t">Ana</span> recomendou <span class="t">Fallout</span></span><span class="tk"><i></i>abre</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Recomendação recebida</b><br><code>recomenda_n_novas()</code> subiu; <code>recomenda_item(0)</code> traz quem, título e capa. Hoje só vira “1 aviso novo”. 8 s.</figcaption></figure>
+
+<figure data-estado="existe"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-ac"><svg class="ic c-ac"><use href="#i-sino"/></svg><span>3 avisos novos</span><span class="tk"><i></i>abre</span></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Central de avisos</b><br>Qualquer item novo na central (recomendação, estreia, versão, aviso do dono, queda). AZUL/CH+ abre a lista. 20 s (avisos.c:862).</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-ac"><svg class="ic c-ac"><use href="#i-tv"/></svg><span>Saiu T2E5 de <span class="t">The Bear</span></span><span class="tk"><i></i>abre</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Episódio novo</b><br><code>agenda_devidos()</code>. Hoje entra calado como cartão; a pílula anuncia antes de virar cartão. 8 s.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-ac"><svg class="ic c-ac"><use href="#i-cal"/></svg><span><span class="t">Andor</span> estreia hoje</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Estreia hoje</b><br><code>agenda_dias(dataProx) == 0</code> (ilhacart.c:96), uma vez por dia. 6 s.</figcaption></figure>
+
+<figure data-estado="existe"><div class="quadro" data-base="1100" data-h="140"><div class="tv b2"><div class="veu"></div>
+ <div class="ilha pl dir l-ac"><svg class="ic c-ac"><use href="#i-sino"/></svg><span>Lembrete marcado: Jornal Nacional</span></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Lembrete do Guia</b><br>OK num programa futuro do Guia (guia.c:1531). No Guia a ilha vai à direita. 4,5 s.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-ac"><svg class="ic c-ac"><use href="#i-down"/></svg><span>Versão 1.7.2 chegou</span><span class="tk"><i></i>abre</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Versão nova</b><br><code>atualizacao_nova()</code>. AZUL abre o modal Atualizar / Depois. 10 s.</figcaption></figure>
+
+<figure data-estado="existe"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-ok"><svg class="ic c-ok"><use href="#i-check"/></svg><span>Atualizado. Feche e abra o app para usar.</span></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Atualização pronta</b><br>O download terminou com o cartão fechado (atualizacao.c:1101). 7 s.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv b4"><div class="veu"></div>
+ <div class="ilha pl l-er"><svg class="ic c-er"><use href="#i-wifioff"/></svg><span>Sem internet. Mostrando o que já estava salvo.</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><span class="selo sinal">sinal novo</span><b>Sem internet</b><br>Falta um contador de falhas de transporte em rede.c. Fica até a rede voltar.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-ok"><svg class="ic c-ok"><use href="#i-wifi"/></svg><span>Internet de volta</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><span class="selo sinal">sinal novo</span><b>Conexão voltou</b><br>Primeiro pedido bem-sucedido depois do aviso acima, com a mesma chave (troca no lugar). 3 s.</figcaption></figure>
+
+<figure data-estado="existe"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl"><svg class="ic c-ac"><use href="#i-sino"/></svg><span>Servidor da conta Nuvio fora do ar — usando seus addons salvos</span></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Conta fora do ar</b><br><code>sync_addons_fora()</code>, uma vez por queda (app.c:1877, #215). INFO, 9 s.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-ok"><svg class="ic c-ok"><use href="#i-cloud"/></svg><span>A conta voltou. Addons atualizados.</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Conta voltou</b><br>O mesmo bloco de app.c:1887, quando <code>fora</code> volta a 0. Hoje só retira o aviso. 4 s.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv b3"><div class="veu"></div>
+ <div class="ilha pl l-er"><svg class="ic c-er"><use href="#i-puzzle"/></svg><span>O addon <span class="t">Torrentio</span> não respondeu</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><span class="selo sinal">sinal novo</span><b>Addon fora do ar</b><br>addons.c não guarda saúde por addon; só <code>addons_motivo_vazio()</code> numa busca vazia.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-er"><svg class="ic c-er"><use href="#i-alerta"/></svg><span>Seu TorBox está sem plano. As fontes dele ficam de fora.</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Debrid sem plano</b><br><code>debrid_sem_plano_novo()</code>, uma vez por sessão. Hoje só no toast do player (app.c:2669). 8 s.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-er"><svg class="ic c-er"><use href="#i-unlink"/></svg><span>O Trakt desconectou</span><span class="tk"><i></i>abre</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Trakt desconectado</b><br><code>traktauth_estado() == TRA_INVALIDO</code>. Hoje só em Ajustes. AZUL abre Reconectar / Depois. 9 s.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl"><svg class="ic c-in"><use href="#i-down"/></svg><span>O TorBox está baixando <span class="t">Duna</span>. Volte em alguns minutos.</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Fonte baixando no debrid</b><br>Resultado <code>DEBRID_BAIXANDO</code> (app.c:977); dito na home, depois do Voltar. 9 s.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-er"><svg class="ic c-er"><use href="#i-sync"/></svg><span>Não deu para sincronizar a conta. Tento de novo sozinho.</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Sincronização falhou</b><br><code>sync_estado() == SYNC_FALHOU</code>. Hoje só Ajustes e a escolha de perfil olham. 6 s.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv b3"><div class="veu"></div>
+ <div class="ilha pl"><span class="av s36 a4">L</span><span>Agora no perfil <span class="t">Lia</span></span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Perfil trocado</b><br><code>trocou</code> em app.c:1812 + <code>perfis_item_ativo()</code>. 3 s.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv b4"><div class="veu"></div>
+ <div class="ilha pl l-er"><svg class="ic c-er"><use href="#i-alerta"/></svg><span>O app fechou sozinho da última vez</span><span class="tk"><i></i>abre</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Queda na sessão anterior</b><br><code>avisos_sessao_anterior_caiu()</code>. Hoje abre cartão próprio; AZUL leva a Enviar registro.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv b2"><div class="veu"></div>
+ <div class="ilha pl"><svg class="ic c-in"><use href="#i-mega"/></svg><span>Guia de TV lento hoje</span><span class="tk"><i></i>abre</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Aviso de quem faz o app</b><br>Item <code>AV_CANAL</code> de avisos.json (lido a cada 30 min). Mostra o título; AZUL abre o texto. 10 s.</figcaption></figure>
+</div></section>
+
+<!-- ============================================================ 3 -->
+<section><h2>3. Atividade ao vivo</h2><p>Algo em andamento: ponto que respira, frase e, quando há número, porcentagem e trilho fino na base. Quem tem a atividade renova a cada quadro; parou de renovar, ela sai em 0,4 s.</p>
+<div class="grade">
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl"><span class="duo"><span class="av s36 a1">A</span><span class="mini g2"></span></span><span><span class="t">Ana</span> está vendo <span class="t">Severance</span></span><span class="m">T2E4</span><span class="vivo"></span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Amigo assistindo agora</b><br>Evento <code>REC_ACAO_INICIO</code> do feed (<code>recomenda_feed_item</code>), com rosto e capa. O feed é relido a cada 10 min. 6 s.</figcaption></figure>
+
+<figure data-estado="existe"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl"><span class="ponto"></span><span>Baixando a atualização...</span><span class="m">42%</span><span class="tr"><i style="width:42%"></i></span></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Baixando a atualização</b><br>O cartão de atualização foi fechado no meio do download (atualizacao.c:1099).</figcaption></figure>
+
+<figure data-estado="existe"><div class="quadro" data-base="1100" data-h="140"><div class="tv b2"><div class="veu"></div>
+ <div class="ilha pl dir"><span class="ponto"></span><span>Atualizando a lista de canais…</span></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Lista de canais</b><br><code>guia_atualizando_lista()</code> (app.c:3541). Sem número, sem trilho.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl"><span class="ponto"></span><span>Sincronizando a conta…</span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Sincronizando</b><br><code>sync_estado() == SYNC_RODANDO</code>. Sem porcentagem: o sync não mede. Só se passar de 3 s.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl"><span class="ponto"></span><span>TorBox baixando <span class="t">Duna</span></span><span class="m">12%</span><span class="tr"><i style="width:12%"></i></span></div></div></div>
+<figcaption><span class="selo novo">novo</span><span class="selo sinal">sinal novo</span><b>Torrent baixando no debrid</b><br>Precisa de uma sonda de progresso depois de <code>DEBRID_BAIXANDO</code>; hoje ninguém volta a perguntar.</figcaption></figure>
+</div></section>
+
+<!-- ============================================================ 4 -->
+<section><h2>4. Cartões persistentes ao lado do relógio</h2><p>Ficam na mesma pílula, depois de um fio, até quem os pôs tirar. Avisos e atividade passam na frente. Com dois, alternam a cada 6 s. AZUL/CH+ ou o clique abre o modal.</p>
+<div class="grade">
+<figure data-estado="existe"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl"><span class="t">20:31</span><span class="fio"></span><span class="mini"></span><span class="col"><span><span class="t">Fallout</span> <span class="m">T1E3 · 32 min restantes</span></span><span class="bar" style="width:100%"><i style="width:38%"></i></span></span></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Continuar (atividade ao vivo)</b><br>Saiu do player no meio (<code>ilhacart_player_saiu</code>). Some com 30 min sem tecla.</figcaption></figure>
+
+<figure data-estado="existe"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl"><span class="t">20:31</span><span class="fio"></span><svg class="ic c-ac"><use href="#i-cal"/></svg><span class="t">The Bear</span><span class="m">T2E5 · hoje</span><span class="nl"></span></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Episódio novo (estreia)</b><br>Aviso de agenda não lido (<code>avisos_estreia_pendente</code>). Sai ao abrir o título ou marcar como visto.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1100" data-h="140"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl"><span class="t">20:31</span><span class="fio"></span><span class="duo"><span class="av s36 a1">A</span><span class="mini g2"></span></span><span class="t">Ana</span><span class="m">Severance · agora</span><span class="vivo"></span></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Amigo vendo agora</b><br>Terceiro cartão: o evento de início mais novo do feed, enquanto tiver menos de 15 min (a regra de <code>temAgora</code>).</figcaption></figure>
+
+<figure data-estado="existe"><div class="quadro" data-base="1100" data-h="250"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl"><span class="t">20:31</span><span class="fio"></span><span class="mini"></span><span class="col"><span><span class="t">Fallout</span> <span class="m">T1E3 · 32 min restantes</span></span><span class="bar" style="width:100%"><i style="width:38%"></i></span></span></div>
+ <div class="ilha pl" style="top:150px;opacity:.9"><span class="t">20:31</span><span class="fio"></span><svg class="ic c-ac"><use href="#i-cal"/></svg><span class="t">The Bear</span><span class="m">T2E5 · hoje</span><span class="nl"></span></div>
+ <div class="lbl min" style="left:820px;top:56px">agora</div><div class="lbl min" style="left:700px;top:170px">daqui a 6 s, a mesma pílula</div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Dois cartões alternando</b><br>Continuar e estreia ao mesmo tempo: troca a cada <code>ILHA_ALTERNA_MS</code> (6 s), a pílula remorfa.</figcaption></figure>
+</div></section>
+
+<!-- ============================================================ 5 -->
+<section><h2>5. Modal: a pílula crescida</h2><p>A mesma superfície cresce até um cartão com arte e botões; Voltar recolhe para a pílula. Seta para a direita depois do último botão leva a Salvos. Hoje existem dois (Continuar e Episódio novo, sempre com três botões); os outros pedem um modal com N botões e rosto no lugar da arte.</p>
+<div class="grade larga">
+<figure data-estado="existe"><div class="quadro" data-base="1312" data-h="500"><div class="tv"><div class="veu forte"></div>
+ <div class="ilha md"><div class="lin"><div class="arte g1"></div><div class="dir-col"><div class="logo" style="color:#f5c542">Fallout</div><div class="ep">T1E3 · The Head</div><div class="sin">Num futuro pós-apocalíptico, Lucy sai do abrigo pela primeira vez e encontra uma Los Angeles devastada, onde nada é como os livros do abrigo contavam.</div><div class="est"><span>32 min restantes</span><span class="bar"><i style="width:38%"></i></span></div></div></div>
+ <div class="botoes"><button class="bt foco"><svg class="ic"><use href="#i-play"/></svg>Retomar</button><button class="bt"><svg class="ic"><use href="#i-info"/></svg>Detalhes</button><button class="bt sem">Fechar</button><span class="salvos">Salvos ›</span></div></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Continuar</b><br>AZUL/CH+ com o cartão ao vivo na pílula. Retomar volta ao ponto exato (<code>player_retomar_retido</code>).</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1312" data-h="500"><div class="tv b3"><div class="veu forte"></div>
+ <div class="ilha md"><div class="lin"><div class="arte g4"></div><div class="dir-col"><div class="logo">The Bear</div><div class="ep">T2E5 · Pique</div><div class="sin">Carmy e Sydney correm contra o relógio para abrir o restaurante, enquanto Richie descobre o que fazer da própria vida.</div><div class="est"><span class="nl"></span><span>Episódio novo · hoje</span></div></div></div>
+ <div class="botoes"><button class="bt foco"><svg class="ic"><use href="#i-play"/></svg>Assistir</button><button class="bt"><svg class="ic"><use href="#i-relogio"/></svg>Depois</button><span class="salvos">Salvos ›</span></div></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Episódio novo: Assistir / Depois</b><br>Variação do modal que existe (hoje: Assistir · Detalhes · Marcar como visto). “Depois” recolhe sem marcar; o cartão fica.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1312" data-h="500"><div class="tv b2"><div class="veu forte"></div>
+ <div class="ilha md"><div class="lin"><div class="arte g2"><span class="av a1">A</span></div><div class="dir-col"><div class="kick"><span class="av s36 a1" style="width:28px;height:28px;font-size:13px">A</span>Recomendação de Ana</div><div class="logo" style="font-size:48px">Severance</div><div class="ep" style="font-weight:500;color:rgba(243,242,239,.7)">Série · 2022 · IMDb 8,7</div><div class="fala">“Você vai gostar, confia.”</div><div class="est" style="font-size:17px">há 12 min</div></div></div>
+ <div class="botoes"><button class="bt foco"><svg class="ic"><use href="#i-play"/></svg>Ver</button><button class="bt"><svg class="ic"><use href="#i-book"/></svg>Salvar</button><button class="bt sem">Dispensar</button><span class="salvos">Salvos ›</span></div></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Recomendação de amigo: Ver / Salvar / Dispensar</b><br>Dados de <code>RecItem</code>: deNome, deAvatar, titulo, poster, ano, nota, modelo (a frase pronta).</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1312" data-h="390"><div class="tv b3"><div class="veu forte"></div>
+ <div class="ilha md"><div class="lin" style="align-items:center"><div class="rosto av a2">B</div><div class="dir-col"><div class="kick">Pedido de amizade</div><div class="logo" style="font-size:46px">Bruno</div><div class="sin" style="margin-top:6px">Terror dos anos 80 e qualquer coisa com o Bill Hader.</div><div class="chips"><span>Terror</span><span>Comédia</span><span>Ficção científica</span></div></div></div>
+ <div class="botoes"><button class="bt foco"><svg class="ic"><use href="#i-check"/></svg>Aceitar</button><button class="bt"><svg class="ic"><use href="#i-x"/></svg>Recusar</button><span class="salvos" style="font-size:17px">Recusar não avisa a pessoa.</span></div></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Pedido de amizade: Aceitar / Recusar</b><br>Dados de <code>RecPessoa</code> (apelido, avatar, bio, gêneros). Ações <code>recomenda_aceitar</code> / <code>recomenda_recusar</code>. A frase do rodapé já existe em pessoas.c.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1312" data-h="420"><div class="tv"><div class="veu forte"></div>
+ <div class="ilha md"><div class="lin" style="align-items:flex-start"><div class="tile"><svg class="ic c-ac"><use href="#i-down"/></svg></div><div class="dir-col"><div class="kick">Versão nova</div><div class="logo" style="font-size:46px">Nuvio 1.7.2</div><div class="nota" style="margin-top:4px">Você está na 1.7.1</div><ul class="lista"><li>Legendas ASS mais rápidas na C9</li><li>Folha de Fontes com filtro Dublado</li><li>Correções no Guia de TV</li></ul></div></div>
+ <div class="botoes"><button class="bt foco"><svg class="ic"><use href="#i-down"/></svg>Atualizar</button><button class="bt">Depois</button></div></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Versão nova: Atualizar / Depois</b><br><code>atualizacao_nova()</code> + as notas que o cartão de atualização já lê. Atualizar = <code>atualizacao_abrir()</code>.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1312" data-h="360"><div class="tv b4"><div class="veu forte"></div>
+ <div class="ilha md l-er"><div class="lin" style="align-items:flex-start"><div class="tile"><svg class="ic c-er"><use href="#i-unlink"/></svg></div><div class="dir-col"><div class="kick">Trakt</div><div class="logo" style="font-size:44px">A sessão do Trakt expirou</div><div class="sin">Enquanto isso, o que você assistir não vai para o Trakt. Leva um minuto: um código na TV, o celular confirma.</div></div></div>
+ <div class="botoes"><button class="bt foco"><svg class="ic"><use href="#i-sync"/></svg>Reconectar</button><button class="bt">Depois</button></div></div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Trakt desconectado: Reconectar / Depois</b><br><code>TRA_INVALIDO</code>; Reconectar leva ao pareamento de Ajustes (<code>traktauth_comecar</code>).</figcaption></figure>
+</div></section>
+
+<!-- ============================================================ 6 -->
+<section><h2>6. Empilhamento: três avisos seguidos</h2><p>Hoje: um por vez, fila de 4 por ordem de chegada; o prazo de cada um só conta quando ele aparece; mesma chave troca no lugar. A proposta acrescenta prioridade e um contador.</p>
+<div class="grade media">
+<figure data-estado="existe"><div class="quadro" data-base="1300" data-h="420"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-ac"><svg class="ic c-ac"><use href="#i-sino"/></svg><span>2 avisos novos</span><span class="tk"><i></i>abre</span></div>
+ <div class="ilha pl l-ac" style="top:156px"><svg class="ic c-ac"><use href="#i-sino"/></svg><span>3 avisos novos</span><span class="tk"><i></i>abre</span></div>
+ <div class="ilha pl" style="top:276px"><svg class="ic c-ac"><use href="#i-sino"/></svg><span>Servidor da conta Nuvio fora do ar — usando seus addons salvos</span></div>
+ <div class="lbl min" style="left:560px;top:56px">0 s · chega o 1º; fila vazia</div>
+ <div class="lbl min" style="left:560px;top:176px">2 s · chega outro da central: mesma chave, troca no lugar</div>
+ <div class="lbl min" style="left:96px;top:356px">só depois de 20 s · o aviso da conta esperava na fila</div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Hoje: fila simples</b><br>FIFO de 4, sem prioridade (ilha.c:107-112). Um erro pode esperar 20 s atrás do toast da central.</figcaption></figure>
+
+<figure data-estado="novo"><div class="quadro" data-base="1300" data-h="420"><div class="tv"><div class="veu"></div>
+ <div class="ilha pl l-ac"><span class="duo"><span class="av s36 a1">A</span><span class="mini"></span></span><span><span class="t">Ana</span> recomendou <span class="t">Fallout</span></span><span class="mais">+2</span></div>
+ <div class="ilha pl l-er" style="top:156px"><svg class="ic c-er"><use href="#i-unlink"/></svg><span>O Trakt desconectou</span><span class="mais">+2</span></div>
+ <div class="ilha pl l-ac" style="top:276px"><svg class="ic c-ac"><use href="#i-sino"/></svg><span>2 avisos novos</span><span class="tk"><i></i>abre</span></div>
+ <div class="lbl min" style="left:760px;top:56px">0 s · o 1º, com “+2” esperando</div>
+ <div class="lbl min" style="left:620px;top:176px">um erro chega: fura a fila e entra já</div>
+ <div class="lbl min" style="left:640px;top:296px">o resto vira um só, que abre a central</div></div></div>
+<figcaption><span class="selo novo">novo</span><b>Proposta: prioridade e contador</b><br>Erro fura a fila; com mais de um esperando, aparece “+N”; o que sobrar se junta no aviso da central em vez de passar um por um.</figcaption></figure>
+</div></section>
+
+<!-- ============================================================ 7 -->
+<section><h2>7. Posições e material</h2><p>Ajustes › Aparência › Posição do relógio: Automática, Esquerda, Direita. O Guia fica sempre à direita. Com Glass UI desligado as formas são as mesmas e o miolo vira sólido.</p>
+<div class="grade">
+<figure data-estado="existe"><div class="quadro" data-base="1920" data-h="1080"><div class="tv"><div class="veu"></div>
+ <div class="hero-t"><div class="k">Série · 2024</div><div class="n">Fallout</div><div class="s">Num futuro pós-apocalíptico, os sobreviventes vivem em abrigos subterrâneos.</div></div>
+ <div class="fil"><div class="h">Continuar assistindo</div><div class="cs"><i></i><i></i><i></i><i></i><i></i></div></div>
+ <div class="ilha pl"><span class="t">20:31</span><span class="fio"></span><span class="mini"></span><span class="col"><span><span class="t">Fallout</span> <span class="m">T1E3 · 32 min restantes</span></span><span class="bar" style="width:100%"><i style="width:38%"></i></span></span></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Automática / Esquerda</b><br>Topo esquerdo, na coluna do conteúdo; o modal cresce para a direita e para baixo.</figcaption></figure>
+
+<figure data-estado="existe"><div class="quadro" data-base="1920" data-h="1080"><div class="tv"><div class="veu"></div>
+ <div class="hero-t"><div class="k">Série · 2024</div><div class="n">Fallout</div><div class="s">Num futuro pós-apocalíptico, os sobreviventes vivem em abrigos subterrâneos.</div></div>
+ <div class="fil"><div class="h">Continuar assistindo</div><div class="cs"><i></i><i></i><i></i><i></i><i></i></div></div>
+ <div class="ilha pl dir l-ac"><span class="duo"><span class="av s36 a1">A</span><span class="mini"></span></span><span><span class="t">Ana</span> recomendou <span class="t">Fallout</span></span><span class="tk"><i></i>abre</span></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Direita</b><br>Margem de 64 px; a pílula cresce para a esquerda e o modal também. (O aviso desenhado é o novo, de recomendação.)</figcaption></figure>
+
+<figure data-estado="existe"><div class="quadro" data-base="1920" data-h="1080"><div class="tv b2"><div class="veu"></div>
+ <div class="hero-t"><div class="k">Filme · 2021</div><div class="n" style="color:#f3f2ef">Duna</div><div class="s">Paul Atreides chega a Arrakis, o planeta mais perigoso do universo.</div></div>
+ <div class="fil"><div class="h">Em alta</div><div class="cs"><i></i><i></i><i></i><i></i><i></i></div></div>
+ <div class="ilha menup"><svg class="ic"><use href="#i-menu"/></svg></div>
+ <div class="ilha pl fech" style="left:126px;top:42px">20:31</div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Layout Dinâmica, Esquerda</b><br>Ao lado da pílula fechada da barra lateral (<code>menu_pilula_rect</code> + vão). Na Automática, a Dinâmica a põe à direita.</figcaption></figure>
+
+<figure data-estado="existe"><div class="quadro" data-base="1920" data-h="1080"><div class="tv solido"><div class="veu"></div>
+ <div class="hero-t"><div class="k">Série · 2024</div><div class="n">Fallout</div><div class="s">Num futuro pós-apocalíptico, os sobreviventes vivem em abrigos subterrâneos.</div></div>
+ <div class="fil"><div class="h">Continuar assistindo</div><div class="cs"><i></i><i></i><i></i><i></i><i></i></div></div>
+ <div class="ilha pl l-er"><svg class="ic c-er"><use href="#i-alerta"/></svg><span>Seu TorBox está sem plano. As fontes dele ficam de fora.</span></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Sólido (Glass UI desligado)</b><br>Chapa opaca, sombra um pouco mais forte; a luz do tipo continua (ilha.c:853-865). Aviso desenhado: o novo, de debrid.</figcaption></figure>
+</div>
+<div class="grade larga" style="margin-top:30px">
+<figure data-estado="existe"><div class="quadro" data-base="1312" data-h="500"><div class="tv solido"><div class="veu forte"></div>
+ <div class="ilha md"><div class="lin"><div class="arte g1"></div><div class="dir-col"><div class="logo" style="color:#f5c542">Fallout</div><div class="ep">T1E3 · The Head</div><div class="sin">Num futuro pós-apocalíptico, Lucy sai do abrigo pela primeira vez e encontra uma Los Angeles devastada.</div><div class="est"><span>32 min restantes</span><span class="bar"><i style="width:38%"></i></span></div></div></div>
+ <div class="botoes"><button class="bt"><svg class="ic"><use href="#i-play"/></svg>Retomar</button><button class="bt foco"><svg class="ic"><use href="#i-info"/></svg>Detalhes</button><button class="bt sem">Fechar</button><span class="salvos">Salvos ›</span></div></div></div></div>
+<figcaption><span class="selo existe">existe</span><b>Modal sólido, foco no segundo botão</b><br>Mesmo modal com Glass UI desligado; o foco anda com ←/→ e é sempre a pílula cheia no acento.</figcaption></figure>
+</div></section>
+
+</main>
+<script>
+function aj(q){
+  var w=q.getBoundingClientRect().width, tv=q.firstElementChild;
+  var base=+q.dataset.base||1920, x=+q.dataset.x||0;
+  if(w>0&&tv){tv.style.transform='scale('+(w/base)+') translateX('+(-x)+'px)';}
+}
+document.querySelectorAll('.quadro').forEach(function(q){
+  var h=+q.dataset.h||1080, base=+q.dataset.base||1920;
+  q.style.aspectRatio=base+'/'+h;
+  q.firstElementChild.style.height=Math.max(h,1)+'px';
+  // pilulas ancoradas a direita: o recorte mostra o lado direito da TV
+  if(q.querySelector('.pl.dir,.md.dir')&&base<1920&&!q.dataset.x)q.dataset.x=String(1920-base);
+});
+var ro=('ResizeObserver' in window)?new ResizeObserver(function(es){es.forEach(function(e){aj(e.target);});}):null;
+document.querySelectorAll('.quadro').forEach(function(q){if(ro)ro.observe(q);aj(q);});
+addEventListener('resize',function(){document.querySelectorAll('.quadro').forEach(aj);});
+addEventListener('load',function(){document.querySelectorAll('.quadro').forEach(aj);});
+document.querySelectorAll('.cores button').forEach(function(b){b.onclick=function(){document.documentElement.style.setProperty('--ac',b.dataset.c);document.querySelectorAll('.cores button').forEach(function(x){x.setAttribute('aria-pressed',x===b);});};});
+document.querySelectorAll('.seg2 button[data-m]').forEach(function(b){b.onclick=function(){document.body.dataset.material=b.dataset.m;document.querySelectorAll('.seg2 button[data-m]').forEach(function(x){x.setAttribute('aria-pressed',x===b);});};});
+var ex=document.querySelectorAll('figure[data-estado="existe"]').length, nv=document.querySelectorAll('figure[data-estado="novo"]').length;
+document.getElementById('conta').innerHTML='<b>'+(ex+nv)+'</b> estados · <b>'+ex+'</b> existem · <b>'+nv+'</b> novos';
+</script>
+</body>
+</html>

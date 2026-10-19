@@ -1,0 +1,152 @@
+// Idiomas de MIDIA: nome legivel, comparacao tolerante a variante, e a
+// preferencia de audio/legenda da pessoa.
+//
+// POR QUE ISTO EXISTE. O port nasceu com os idiomas CRAVADOS: addons.c tinha
+// duas listas ("pob","pt-br",... e "eng","en",...) e um comentario dizendo "o
+// usuario pediu explicitamente estes dois grupos". Toda legenda que nao fosse
+// portugues ou ingles era DESCARTADA em silencio. Isso funcionava para uma
+// casa; para quem instalar o pacote e falar espanhol, significa abrir o player
+// e nao encontrar legenda nenhuma, sem explicacao.
+//
+// DE ONDE VEM A PREFERENCIA, nesta ordem:
+//   1. Ajustes desta TV, quando a pessoa escolheu explicitamente.
+//   2. A CONTA. O blob de ajustes traz, sob `player_settings`:
+//        subtitle_preferred_language, subtitle_secondary_language,
+//        preferred_audio_language, secondary_preferred_audio_language
+//      MEDIDO no app web (profileSettingsSyncService.js:1066). Os valores sao
+//      codigos ISO minusculos ("en", "pt"), mais as sentinelas "none"/"off"
+//      para legenda e "DEVICE"/"DEFAULT"/"ORIGINAL" para audio.
+//   3. NADA. E aqui esta a regra que importa: sem preferencia, NAO SE FILTRA.
+//      Mostrar tudo e a resposta honesta para "nao sei o que voce quer"; um
+//      filtro chutado esconde a legenda que a pessoa procurava e ela nao tem
+//      como saber que houve filtro. (Vale para ling_casa. A lista de legendas
+//      dos ADDONS e outra regra: idioma escolhido + ingles, ver addons.c.)
+#ifndef NV_LINGUAS_H
+#define NV_LINGUAS_H
+
+// Nome para a tela ("pob" -> "Português (BR)"). Sem correspondencia, devolve o
+// codigo em MAIUSCULAS, que ao menos identifica.
+const char *ling_nome(const char *codigo);
+
+// FAIXA SO DE LETREIROS: "Signs", "Songs", "Signs & Songs", "Forced" no nome,
+// ou a FlagForced do Matroska. Ela traduz placas e musicas, nao o dialogo — e
+// escolhida por engano parece "a legenda some no meio da cena".
+int ling_letreiro(const char *nome, int forcado);
+
+// TIPO DA LEGENDA (#287): o que a lista mostra ao lado de "Embutida" e o que
+// a escolha automatica pesa. `nome` e o Name da faixa (MKV) ou o label do
+// player; `forcado` a FlagForced / SELECTION_FLAG_FORCED; `sdh` a
+// FlagHearingImpaired / ROLE_FLAG_DESCRIBES_MUSIC_AND_SOUND.
+//   FORCADA   = so as falas em lingua estrangeira (flag ou "Forced" no nome)
+//   LETREIROS = "Signs", "Songs", "Signs & Songs" (placas e musicas)
+//   SDH       = para surdos ("SDH", "CC", "Hearing Impaired")
+//   COMPLETA  = o nome diz ("Full", "Complete", "Dialogue")
+// ling_letreiro(n, f) == (tipo FORCADA ou LETREIROS), sempre.
+#define LING_LEG_COMUM     0
+#define LING_LEG_FORCADA   1
+#define LING_LEG_LETREIROS 2
+#define LING_LEG_SDH       3
+#define LING_LEG_COMPLETA  4
+int ling_tipo_legenda(const char *nome, int forcado, int sdh);
+// Rotulo curto do tipo, ainda em portugues (passar por i18n). NULL no COMUM.
+const char *ling_tipo_legenda_rotulo(int tipo);
+
+// Idioma que o NOME da faixa diz com todas as letras ("Português", "English",
+// "Español", "Brazilian Portuguese"). NULL quando o nome nao cita idioma, ou
+// cita dois de familias diferentes — ai nao ha como saber qual vale, e
+// inventar e pior que ficar com a etiqueta do arquivo.
+const char *ling_do_nome(const char *nome);
+
+// O codigo casa com a preferencia? Tolera variante e as duas familias ISO:
+// pedir "pt" aceita "por", "pob", "pt-BR", "ptb". Preferencia vazia casa com
+// TUDO — e o modo sem filtro.
+int ling_casa(const char *codigo, const char *pref);
+void ling_normalizar(const char *raw, char *out, unsigned tam);
+const char *ling_selo(const char *cod);
+int ling_afinidade(const char *cod, const char *pref);
+
+// Preferencias em vigor. Devolvem "" quando nao ha preferencia (sem filtro) e
+// "none" quando a pessoa pediu explicitamente NENHUMA legenda.
+const char *ling_legenda(void);
+const char *ling_legenda2(void);
+const char *ling_audio(void);
+// Segundo idioma de audio (audioescolha.h): ling_legenda2, a mesma regra.
+const char *ling_audio2(void);
+
+// Optional source-sheet audio filter. Explicit audio language wins; otherwise
+// use the resolved interface/device language supplied by the caller. "All"
+// stays unfiltered and local "Original" still resolves only from this title.
+// This does not change playback's automatic track-selection preferences.
+const char *ling_audio_fonte(const char *padrao);
+
+// So a parte da CONTA, sem a escolha local por cima (para o log, #378).
+const char *ling_conta_legenda_valor(void);
+const char *ling_conta_legenda2_valor(void);
+const char *ling_conta_audio_valor(void);
+const char *ling_conta_audio2_valor(void);
+
+// Vindas da CONTA (blob de ajustes). Nao sobrescrevem escolha local.
+void ling_conta_legenda(const char *v);
+void ling_conta_legenda2(const char *v);
+void ling_conta_audio(const char *v);
+void ling_conta_audio2(const char *v);
+
+// Vindas dos AJUSTES desta TV. "" volta a seguir a conta.
+void ling_local_legenda(const char *v);
+// Second subtitle language chosen on THIS TV (F04). "" = follow the account.
+void ling_local_legenda2(const char *v);
+void ling_local_audio(const char *v);
+void ling_local_audio2(const char *v);   // "" = segue a conta
+
+// Lista fixa oferecida em Ajustes. O indice 0 e "seguir a conta" e o 1 e "sem
+// filtro"; do 2 em diante sao codigos ISO.
+// IDIOMA ORIGINAL DO TITULO ABERTO. Quem abre um titulo avisa qual e (vem de
+// extras_idioma_original, que le o `original_language` do TMDB); a opcao
+// "Original" da tela de Ajustes resolve para ele.
+//
+// Sem aviso, ou com aviso vazio, "Original" se comporta como "nao trocar de
+// faixa" — que e o que o app sempre fez. Chutar um idioma seria pior: a pessoa
+// ouviria dublagem sem saber que foi o app que escolheu.
+void        ling_definir_original(const char *cod);
+const char *ling_original(void);
+
+// Indice de "Original do titulo" dentro da lista de opcoes. E FIXO, nao o
+// ultimo: o ajustes.txt grava indice, nao codigo, entao mover o "~" troca a
+// lingua de quem ja tem ajuste salvo, e inserir no meio reinterpreta o
+// arquivo (ver a nota em linguas.c). Idiomas novos entram DEPOIS dele.
+#define LING_OPC_ORIGINAL 30
+int         ling_opcao_n(void);
+const char *ling_opcao_codigo(int i);   // "" para conta, "*" para sem filtro
+
+// LEGENDA QUE LIGA SOZINHA quando o video comeca (#129).
+//
+// Antes disto a preferencia de legenda so FILTRAVA e ordenava a lista de
+// legendas dos addons: nada era ligado, embutida ou externa. "Escolhi ingles e
+// o filme nao abre com legenda em ingles" era o comportamento do codigo, nao
+// um defeito de gravacao — e do sofa as duas coisas parecem a mesma.
+//
+// Esta e so a DECISAO, sem video nem rede, para o teste alcancar. Quem a chama
+// (faixas.c) diz o que ja se sabe: o idioma de cada faixa embutida ("" quando
+// o arquivo nao etiqueta ou a sonda do MKV ainda nao voltou) e de cada legenda
+// de addon, e se cada lista ja esta FECHADA (nao vai mudar mais). Devolve o
+// indice na lista combinada da folha de faixas — embutidas primeiro, depois as
+// de addon — ou uma das duas marcas abaixo.
+#define LING_AUTO_ESPERA (-2)   // ainda pode aparecer uma que case
+#define LING_AUTO_NADA   (-1)   // nao ha o que ligar: fica como o arquivo abriu
+int ling_legenda_auto(const char *pref,
+                      const char *const *emb, int nEmb, int embFechado,
+                      const char *const *add, int nAdd, int addFechado);
+
+// A MESMA decisao sabendo o TIPO de cada embutida (#287) e o idioma do AUDIO
+// que toca. `tipoEmb` = LING_LEG_* por faixa (NULL = todas comuns); `audio` =
+// idioma da faixa de audio atual ("" = nao se sabe).
+//   - `forcadaAuto` ligado e audio no idioma da legenda: a pessoa entende o
+//     dialogo, so precisa das falas estrangeiras e placas. Liga a FORCADA (ou,
+//     sem ela, a de LETREIROS) desse idioma; sem nenhuma, NADA. Nunca a de addon.
+//   - fora disso: a legenda inteira. Forcada e letreiros nunca ligam como
+//     principal; entre as que servem, SDH so se nao houver outra.
+int ling_legenda_auto_tipo(const char *pref, const char *audio, int forcadaAuto,
+                           const char *const *emb, const int *tipoEmb, int nEmb, int embFechado,
+                           const char *const *add, int nAdd, int addFechado);
+
+#endif

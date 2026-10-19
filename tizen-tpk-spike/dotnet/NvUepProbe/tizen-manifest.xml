@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns="http://tizen.org/ns/packages" api-version="4" package="NuvioTV002.NvUepProbe" version="0.1.0">
+  <profile name="tv" />
+  <ui-application appid="NuvioTV002.NvUepProbe"
+                   exec="NvUepProbe.dll"
+                   type="dotnet"
+                   multiple="false"
+                   taskmanage="true"
+                   nodisplay="false"
+                   launch_mode="single">
+    <label>Nuvio UEP probe</label>
+    <icon>NvUepProbe.png</icon>
+  </ui-application>
+  <privileges>
+    <!-- So para o Apps2Samsung reassinar como Partner, igual ao NuvioTpk40.
+         O spike nao usa DRM nem rede. -->
+    <privilege>http://developer.samsung.com/privilege/drminfo</privilege>
+  </privileges>
+</manifest>

@@ -1,0 +1,506 @@
+// Tabela de padroes por aparelho e regra de comparacao do otimizador. Ver
+// perfiltv.h para o porque de morar tudo aqui.
+//
+// A TABELA (RAM = MemTotal na LG, navigator.deviceMemory no Tizen):
+//
+//   aparelho            textura  teto   fios rede  heroi
+//   LG sem MemTotal       96     160       4       1920
+//   LG  < 800 MB          48      64       2       1280   webOS 3 de 2016
+//   LG  < 1,2 GB          48      64       2       1280   webOS 3/4 de 1 GB
+//   LG  < 2 GB           128     160       4       1920   webOS 4/5 menores
+//   LG  < 3 GB (C9)      128     300       4       1920   medido na C9
+//   LG >= 3 GB           192     512       4       1920   C1/C2/C3
+//   Samsung sem devMem    96      96       2       1280
+//   Samsung <= 1 GB       64      64       2       1280
+//   Samsung 2 GB          96      96       2       1280*
+//   Samsung >= 4 GB      128     128       2       1280*
+//   (* 1920 so com Qualidade da imagem = Alta, regra de tetoDoHeroi)
+//
+// DE ONDE SAIU CADA COLUNA:
+// - textura/teto: a escada que ja existia em tex_cache.c (orcamentoMB e
+//   tetoPermitidoMB), movida para ca SEM mudar numero. O relatorio da C9 de
+//   22/09 (2245 MB, build alto-cache de 300 MB) confirma o degrau de 128: a
+//   sessao inteira de diagnostico usou 35 MB e 44 texturas, zero pendentes e
+//   zero quentes despejadas — 128 cobre isso com 3,6x de folga, e 300 fica
+//   como TETO que o modo Qualidade pode pedir, nao como padrao.
+// - LG < 1,2 GB desceu de 64/96 para 48/64 (23/09/2026, registros 1720-1774,
+//   MemTotal=964 MB, 36 sessoes). O rss acompanha o orcamento cheio: sessoes
+//   com texturas em ~25 MB ficaram em rss ~125 MB, e as que encheram os 64 MB
+//   (63,9) ficaram em rss 188-198 MB. Nove sessoes dessa pessoa morreram sem
+//   se despedir com ultimo=vivo e rss 112-195 MB. QUE A TV MATOU POR MEMORIA E
+//   HIPOTESE (nao ha log do sistema); o que e medido e o rss subir com as
+//   texturas. A tela mais cheia do registro usou 26 MB (tela=27/26.2MB), entao
+//   48 ainda cobre a tela com folga, e o preco e redecodificar mais ao voltar.
+//   O agregado de 23/09 (tools/diag-agregado.py) propunha 96 para esta faixa,
+//   mas so porque a replica da tabela no script ainda dizia 64/96; os
+//   relatorios com pico 61,7/64 MB sao de builds de antes do 48. Fica 48/64.
+// - LG 1,2-2 GB subiu de 96 para 128 (23/09/2026, agregado de ~38 relatorios
+//   diagnostico=v2): nesta faixa o pico chegou a 160 de 160 MB e houve arte
+//   VISIVEL despejada em 12 de 27 relatorios. 128 e o degrau seguinte da
+//   escada, abaixo do teto de 160 que ja valia; fios e heroi nao mudam.
+// - fios de rede: o build cria 4 na LG e 2 no Tizen (NV_TEX_FIOS_REDE). Na LG
+//   de 1 GB ficam 2 ativos: cada fio segura um corpo baixado ate o decode
+//   (ate 12 MB de fundo), e 4 corpos em voo numa TV com ~300 MB livres e o
+//   caminho do OOM que no webOS fecha o app sem aviso. No Tizen os 2 seguem:
+//   cada fetch passa pelo fio principal (nota de ADD_FIOS em addons.c), e
+//   ninguem mediu 1 melhor que 2 na Samsung.
+// - heroi: 1920 e a largura do painel (8,3 MB por arte). 1280 custa 3,7 MB e
+//   e o teto de fabrica do Tizen (heap fixo de 256 MiB; registro 1450: fundos
+//   grandes levaram o heap a 5,7 MiB livres e a Aborted(OOM)). Na LG abaixo de
+//   1,2 GB o heroi desce ao mesmo 1280 pelo mesmo motivo de RAM.
+#include "perfiltv.h"
+#include "layout.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// A TABELA DO .tpk NATIVO (PTV_TPK, 29/09/2026). Ate aqui o .tpk caia no ramo
+// da LG (ptv_plataforma so conhecia __EMSCRIPTEN__), entao uma Samsung 2019 de
+// 1108 MB recebia a faixa "LG < 1,2 GB": 48 MB de textura, 2 fios, heroi 1280.
+// Aquela faixa desceu por OOM do webOS (registros 1720-1774), que NINGUEM
+// mediu na Samsung nativa. O que foi medido nela (registro D1 8825, Tizen 5.0,
+// Mali-TDVX, 1108 MB): textura em 47,6 de 48 MB com ate ~150 despejos por
+// janela de 3 s — o cache gira o tempo todo.
+//
+//   aparelho (MemTotal)   textura  teto   fios rede  heroi
+//   tpk sem MemTotal        96      96       4       1280
+//   tpk  < 1,2 GB           64      96       2       1280
+//   tpk  < 2,5 GB           96     160       4       1280 (1920 com >= 2 GB e GPU nao fraca)
+//   tpk >= 2,5 GB          128     256       4       1920 (1280 com GPU fraca)
+//
+// - textura < 1,2 GB: 64, um degrau acima dos 48 que despejavam ~150 por
+//   janela, e o mesmo numero que o .wgt ja usa na Samsung de 1 GB. NAO e
+//   medido que 64 cabe sem o sistema matar o app: e o palpite conservador, e
+//   o `rss=` do relatorio de FPS e quem confirma na TV.
+// - fios: o .tpk cria 4 (NV_TEX_FIOS_REDE nativo, curl proprio como na LG);
+//   abaixo de 1,2 GB ficam 2 pelo mesmo motivo de memoria da LG (cada fio
+//   segura um corpo baixado ate o decode).
+// - heroi: GPU fraca fica em 1280 em qualquer RAM. A arte de tela cheia e o
+//   maior desenho da home; 1280 e 3,7 MB contra 8,3 MB de 1920, e numa GPU
+//   presa em preenchimento cada byte lido por quadro conta.
+static int gpuFraca = 0;
+void ptv_definir_gpu_fraca(int f) { gpuFraca = f ? 1 : 0; }
+int  ptv_gpu_fraca_atual(void) { return gpuFraca; }
+
+static int gpuUtgardAtual = 0;
+void ptv_definir_gpu_utgard(int u) { gpuUtgardAtual = u ? 1 : 0; }
+int  ptv_gpu_utgard_atual(void) { return gpuUtgardAtual; }
+
+int ptv_gpu_utgard(const char *r) {
+  const char *m = r ? strstr(r, "Mali-") : NULL;
+  return m && m[5] == '4' && m[6] >= '0' && m[6] <= '9';
+}
+
+int ptv_gpu_fraca(const char *r) {
+  const char *m;
+  if (!r) return 0;
+  m = strstr(r, "Mali-");
+  if (!m) return 0;
+  m += 5;
+  // Utgard (Mali-400/450/470): so GLES2, o mais fraco de todos.
+  if (ptv_gpu_utgard(r)) return 1;
+  // Midgard (Mali-T6xx/T7xx/T8xx) e o "Mali-TDVX" que a Samsung rebatiza.
+  if (m[0] == 'T') return 1;
+  return 0;
+}
+
+PtvPlataforma ptv_plataforma(void) {
+#if defined(__EMSCRIPTEN__)
+  return PTV_TIZEN;
+#elif defined(NV_TPK)
+  return PTV_TPK;
+#elif defined(NV_ANDROID)
+  return PTV_ANDROID;
+#else
+  return PTV_LG;
+#endif
+}
+
+// Android previously used PTV_LG. Preserve its budgets and mode behavior
+// until physical-device measurements justify a separate resource policy.
+const char *ptv_plataforma_nome(PtvPlataforma p) {
+  switch (p) {
+    case PTV_LG: return "lg";
+    case PTV_TIZEN: return "tizen_wgt";
+    case PTV_TPK: return "tizen_tpk";
+    case PTV_ANDROID: return "android";
+    default: return "unknown";
+  }
+}
+
+int ptv_tex_auto_mb(PtvPlataforma p, long mem) {
+  if (p == PTV_TPK) {
+    if (!mem) return NV_TEX_ORCAMENTO_MB;
+    if (mem < 1200) return 64;
+    if (mem < 2500) return 96;
+    return 128;
+  }
+  if (p == PTV_TIZEN) {
+    if (!mem) return NV_TEX_ORCAMENTO_MB;
+    if (mem <= 1024) return 64;
+    if (mem < 4096) return 96;
+    return 128;
+  }
+  if (!mem) return NV_TEX_ORCAMENTO_MB;
+  if (mem < 1200) return 48;
+  if (mem < 3000) return 128;   // 1,2-2 GB e a C9: ver a tabela no topo
+  return 192;
+}
+
+int ptv_tex_teto_mb(PtvPlataforma p, long mem) {
+  if (p == PTV_TIZEN) return ptv_tex_auto_mb(p, mem);
+  if (p == PTV_TPK) {
+    if (!mem || mem < 1200) return 96;
+    if (mem < 2500) return 160;
+    return 256;
+  }
+  if (!mem) return 160;
+  if (mem < 1200) return 64;
+  if (mem < 2000) return 160;
+  if (mem < 3000) return p == PTV_ANDROID ? 192 : 300;
+  return 512;
+}
+
+int ptv_fios_rede_max(PtvPlataforma p) { return p == PTV_TIZEN ? 2 : 4; }
+
+// Fios que a RAM aceita: a LG abaixo de 1,2 GB fica nos 2 da tabela em
+// QUALQUER perfil — padrao, candidato de Qualidade ou perfil salvo. Antes so
+// o padrao respeitava isso; o candidato de Qualidade pedia ptv_fios_rede_max
+// (4), e LGs de 658 MB aprovaram 64 MB com 4 fios (diagnostico de campo,
+// pessoas 80cd1a98 e f9f204be) — os 4 corpos em voo que a tabela evita.
+static int fiosTeto(PtvPlataforma p, long mem) {
+  if ((p == PTV_LG || p == PTV_ANDROID || p == PTV_TPK) && mem && mem < 1200) return 2;
+  return ptv_fios_rede_max(p);
+}
+
+// Teto de heroi que a RAM aceita. No Tizen 1920 so passa com 2 GB ou mais
+// (a mesma linha de tetoDoHeroi); abaixo disso, 1280 sempre.
+int ptv_heroi_max(PtvPlataforma p, long mem) {
+  if (p == PTV_TIZEN) return mem >= 2000 ? 1920 : 1280;
+  if (p == PTV_TPK && !mem) return 1280;
+  if (mem && mem < 1200) return 1280;
+  return 1920;
+}
+
+// Trailer em MP4 progressive (#584): sem ABR, o Samsung mostra o que ja baixou,
+// entao o 1080p chega borrado e demora a firmar. Em Automatico (teto 0) a TV
+// Samsung de 2 GB ou menos comeca no 720p. `alt` vem em ordem decrescente;
+// devolve o indice da maior definicao que nao passa do teto (ou a menor).
+int ptv_trailer_indice(PtvPlataforma p, long mem, int teto, const int *alt, int n) {
+  int i;
+  if (!teto && (p == PTV_TIZEN || p == PTV_TPK) && mem > 0 && mem <= 2048) teto = 720;
+  for (i = 0; i < n; i++) if (!teto || alt[i] <= teto) return i;
+  return n - 1;
+}
+
+// Teto duro (Android fraco): -1 quando nem a menor definicao cabe no teto.
+int ptv_trailer_indice_duro(PtvPlataforma p, long mem, int teto, const int *alt, int n) {
+  int i = ptv_trailer_indice(p, mem, teto, alt, n);
+  return (teto && alt[i] > teto) ? -1 : i;
+}
+
+void ptv_padrao(PtvPlataforma p, long mem, PtvPerfil *out) {
+  if (!out) return;
+  out->texMb = ptv_tex_auto_mb(p, mem);
+  out->fiosRede = fiosTeto(p, mem);
+  // Padrao do Tizen e 1280 mesmo com 2 GB: 1920 la e escolha de quem pos a
+  // qualidade em Alta, nunca o padrao (ver a tabela no topo).
+  out->heroiLarg = p == PTV_TIZEN ? 1280 : ptv_heroi_max(p, mem);
+  // .tpk: 1920 so com 2 GB ou mais E GPU que nao e das fracas (tabela acima).
+  if (p == PTV_TPK && (gpuFraca || mem < 2000)) out->heroiLarg = 1280;
+  // Utgard (#286, registro 1V5YJY): o heroi decodificado a 1280 chegava depois
+  // do prazo de 600 ms em 26 de 55 trocas, e a TV so tem 2 fios de decode. 960
+  // tem 56% dos pixels de 1280 (decode e upload menores) e a tela de 1920 ja
+  // ampliava a arte; GPUs que nao sao Utgard continuam em 1280/1920.
+  if (p == PTV_TPK && gpuUtgardAtual) out->heroiLarg = 960;
+}
+
+// QUALIDADE = o teto que a RAM permite em tudo. DESEMPENHO = menos pressao:
+// o orcamento automatico, metade dos fios (nunca menos que 2 na LG; o Tizen
+// ja esta no minimo medido) e heroi em 1280.
+void ptv_candidato(PtvPlataforma p, long mem, PtvModo modo, int travado,
+                   PtvPerfil *out) {
+  if (!out) return;
+  if (modo == PTV_DESEMPENHO) {
+    ptv_padrao(p, mem, out);
+    if ((p == PTV_LG || p == PTV_ANDROID) && out->fiosRede > 2) out->fiosRede = 2;
+    out->heroiLarg = 1280;
+  } else {
+    out->texMb = ptv_tex_teto_mb(p, mem);
+    out->fiosRede = ptv_fios_rede_max(p);
+    out->heroiLarg = ptv_heroi_max(p, mem);
+    // Tizen: o candidato de Qualidade nao sobe o heroi por conta propria. O
+    // 1920 continua dependendo da escolha Alta (tetoDoHeroi), e o teto aqui so
+    // deixa de ser o gargalo quando ela existe.
+  }
+  if (travado > 0) out->texMb = travado;
+  ptv_limitar(p, mem, out);
+}
+
+int ptv_limitar(PtvPlataforma p, long mem, PtvPerfil *pf) {
+  int mudou = 0, teto;
+  if (!pf) return 0;
+  teto = ptv_tex_teto_mb(p, mem);
+  if (pf->texMb < 16) { pf->texMb = ptv_tex_auto_mb(p, mem); mudou = 1; }
+  if (pf->texMb > teto) { pf->texMb = teto; mudou = 1; }
+  if (pf->fiosRede < 1) { pf->fiosRede = 1; mudou = 1; }
+  if (pf->fiosRede > fiosTeto(p, mem)) { pf->fiosRede = fiosTeto(p, mem); mudou = 1; }
+  if (pf->heroiLarg < 1280) { pf->heroiLarg = 1280; mudou = 1; }
+  if (pf->heroiLarg > ptv_heroi_max(p, mem)) { pf->heroiLarg = ptv_heroi_max(p, mem); mudou = 1; }
+  return mudou;
+}
+
+// A REGRA DE RESTAURAR. Os dois lados sao a MESMA amostra com o cache em disco
+// quente (o passe frio vem antes e nao entra na conta), entao a diferenca que
+// sobra e o que o perfil mudou: fila de decode, fios e teto do heroi.
+//
+// As folgas existem porque a rede de uma TV oscila e um reteste nao e um
+// laboratorio: 25% + 150 ms no tempo de artes (a amostra da C9 levou ~1,9 s;
+// 150 ms e menos de um cartaz), 50% + 20 ms no pior quadro e so a partir de
+// 50 ms (tres quadros a 60 Hz: abaixo disso nao ha tranco que alguem veja).
+// Falha a mais e arte da tela despejada nao tem folga: qualquer uma reprova.
+int ptv_depois_pior(const PtvMedida *a, const PtvMedida *b, const char **motivo) {
+  const char *m = NULL;
+  if (!a || !b) return 0;
+  if (b->falhas > a->falhas) m = "Mais artes falharam depois da mudança";
+  else if (b->despejosQuentes > a->despejosQuentes) m = "Arte visível foi descartada depois da mudança";
+  else if (b->artesMs > a->artesMs + a->artesMs / 4 + 150) m = "Artes ficaram mais lentas depois da mudança";
+  else if (b->piorQuadroMs >= 50 && b->piorQuadroMs > a->piorQuadroMs + a->piorQuadroMs / 2 + 20)
+    m = "O pior quadro piorou depois da mudança";
+  if (motivo) *motivo = m;
+  return m != NULL;
+}
+
+// A MARGEM (23/09/2026). Com so "nao piorou", o mesmo aparelho trocava de
+// perfil a cada rodada por ruido de rede: uma LG foi de 96|4|1920 para
+// 160|4|1920 com artes 316 -> 297 ms (6%, 19 ms) e na rodada seguinte de
+// 160|4|1920 para 96|2|1280 com 320 -> 360 ms (pior, mas dentro da folga de
+// restaurar). Outras duas LGs fizeram o mesmo vaivem em rodadas seguidas.
+// Agora, depois de passar por ptv_depois_pior, o candidato precisa de UM
+// motivo medido para ficar:
+//   GANHO: artes ao menos max(15%, 80 ms) mais rapidas SEM piorar o pior
+//     quadro alem de um quadro (17 ms, so conta a partir de 50 ms) e sem
+//     arte falhando ou despejada a mais; ou menos falhas; ou menos arte
+//     visivel despejada. Contagem que cai nao e ruido de tempo.
+//   MEMORIA: subir o orcamento de texturas vale quando ja houve arte VISIVEL
+//     despejada (no passe ANTES ou na sessao). Sem isso, mais MB nao compra
+//     nada: o cache enche ate qualquer orcamento, e o tempo da amostra com
+//     disco quente nao depende dele.
+//   HEROI: subir o teto do heroi e a propria qualidade que o modo Qualidade
+//     pede (a arte de tela cheia fica nitida); nao precisa ser mais rapido,
+//     so nao pode piorar — e ptv_depois_pior ja reprovou o que piorou.
+// DESCER qualquer campo (menos textura, menos fios, heroi menor) so com
+// GANHO: nunca por uma diferenca que cabe no ruido.
+// O resto e ruido: o anterior volta e o relatorio diz mantido_ruido.
+static int ganhoMedido(const PtvMedida *a, const PtvMedida *b) {
+  int margem = a->artesMs * PTV_GANHO_PCT / 100;
+  if (margem < PTV_GANHO_MIN_MS) margem = PTV_GANHO_MIN_MS;
+  if (b->falhas < a->falhas && b->despejosQuentes <= a->despejosQuentes) return 1;
+  if (b->despejosQuentes < a->despejosQuentes && b->falhas <= a->falhas) return 1;
+  if (b->falhas > a->falhas || b->despejosQuentes > a->despejosQuentes) return 0;
+  if (b->piorQuadroMs >= 50 && b->piorQuadroMs > a->piorQuadroMs + PTV_QUADRO_RUIDO_MS) return 0;
+  return a->artesMs - b->artesMs >= margem;
+}
+
+PtvDecisao ptv_decidir(const PtvPerfil *pa, const PtvPerfil *pc,
+                       const PtvMedida *a, const PtvMedida *b,
+                       long despejosSessao, const char **motivo) {
+  const char *m = NULL;
+  int desce, ganho, pressao;
+  if (motivo) *motivo = NULL;
+  if (!pa || !pc || !a || !b) return PTV_DEC_RUIDO;
+  if (ptv_depois_pior(a, b, motivo)) return PTV_DEC_RESTAURAR;
+  ganho = ganhoMedido(a, b);
+  desce = pc->texMb < pa->texMb || pc->fiosRede < pa->fiosRede || pc->heroiLarg < pa->heroiLarg;
+  pressao = a->despejosQuentes > 0 || despejosSessao > 0;
+  if (ganho) return PTV_DEC_APLICAR;
+  if (desce) m = "Menos recursos sem ganho claro no reteste";
+  else if (pc->heroiLarg > pa->heroiLarg) return PTV_DEC_APLICAR;
+  else if (pc->texMb > pa->texMb && pressao) return PTV_DEC_APLICAR;
+  else if (pc->texMb > pa->texMb) m = "Nenhuma arte visível foi descartada: mais memória não ajuda";
+  else m = "O candidato não foi claramente mais rápido";
+  if (motivo) *motivo = m;
+  return PTV_DEC_RUIDO;
+}
+
+int ptv_serializar(const PtvPerfil *pf, const char *modo, char *dst, size_t cap) {
+  int n;
+  if (!pf || !dst || !cap) return 0;
+  n = snprintf(dst, cap, "versao=2\nmodo=%s\ntex_mb=%d\nfios_rede=%d\nheroi=%d\n",
+               modo ? modo : "", pf->texMb, pf->fiosRede, pf->heroiLarg);
+  return n > 0 && (size_t)n < cap;
+}
+
+static int campo(const char *txt, const char *chave, int *v) {
+  const char *p = txt;
+  size_t n = strlen(chave);
+  while (p && *p) {
+    if (!strncmp(p, chave, n) && p[n] == '=') { *v = atoi(p + n + 1); return 1; }
+    p = strchr(p, '\n');
+    if (p) p++;
+  }
+  return 0;
+}
+
+int ptv_ler(const char *txt, PtvPerfil *pf) {
+  int versao = 0;
+  if (!txt || !pf) return 0;
+  // A versao 1 so guardava o modo e o orcamento de ANTES: nao diz o que foi
+  // aprovado, entao nao vale como perfil.
+  if (!campo(txt, "versao", &versao) || versao != 2) return 0;
+  return campo(txt, "tex_mb", &pf->texMb) && campo(txt, "fios_rede", &pf->fiosRede) &&
+         campo(txt, "heroi", &pf->heroiLarg);
+}
+
+const char *ptv_fonte_nome(int f) {
+  switch (f) {
+    case PTV_FONTE_CATALOGO: return "catalog";
+    case PTV_FONTE_METAHUB: return "metahub";
+    case PTV_FONTE_TMDB: return "tmdb";
+    case PTV_FONTE_TRAKT: return "trakt";
+    case PTV_FONTE_APPLE: return "apple";
+    case PTV_FONTE_FANART: return "fanart";
+    case PTV_FONTE_ANIME: return "anime";
+    case PTV_FONTE_TMDB_OUTRO: return "tmdb_outro";
+    case PTV_FONTE_LOGO: return "logo";
+    default: return "?";
+  }
+}
+
+const char *ptv_fonte_rotulo(int f) {
+  switch (f) {
+    case PTV_FONTE_CATALOGO: return "Catálogo";
+    case PTV_FONTE_METAHUB: return "Metahub";
+    case PTV_FONTE_TMDB: return "TMDB";
+    case PTV_FONTE_TRAKT: return "Trakt";
+    case PTV_FONTE_APPLE: return "Apple TV";
+    case PTV_FONTE_FANART: return "fanart.tv";
+    case PTV_FONTE_ANIME: return "Anime";
+    case PTV_FONTE_TMDB_OUTRO: return "TMDB outro fundo";
+    case PTV_FONTE_LOGO: return "Logo";
+    default: return "?";
+  }
+}
+
+int ptv_fonte_ms(const PtvFonte *f) {
+  if (!f || f->ok <= 0) return -1;
+  return (f->resolveMs + f->downloadMs) / f->ok;
+}
+
+int ptv_fonte_da_url(const char *u) {
+  if (!u) return 0;
+  if (strstr(u, "images.metahub.space")) return PTV_FONTE_METAHUB;
+  if (strstr(u, "nuvio.invalid/arte/tmdbalt/")) return PTV_FONTE_TMDB_OUTRO;
+  if (strstr(u, "image.tmdb.org") || strstr(u, "nuvio.invalid/arte/tmdb/")) return PTV_FONTE_TMDB;
+  if (strstr(u, "trakt.tv") || strstr(u, "nuvio.invalid/arte/trakt/")) return PTV_FONTE_TRAKT;
+  if (strstr(u, "mzstatic.com") || strstr(u, "nuvio.invalid/arte/apple/")) return PTV_FONTE_APPLE;
+  if (strstr(u, "fanart.tv") || strstr(u, "nuvio.invalid/arte/fanart/")) return PTV_FONTE_FANART;
+  if (strstr(u, "kitsu.") || strstr(u, "anilist.co") || strstr(u, "nuvio.invalid/arte/anime/"))
+    return PTV_FONTE_ANIME;
+  return PTV_FONTE_CATALOGO;
+}
+
+int ptv_ajuste_da_fonte(int f, int diferente) {
+  if (f < 1 || f > PTV_FONTE_FUNDO_MAX) return -1;
+  // Com outra arte, "TMDB" ja e o outro backdrop; o padrao do TMDB nao tem
+  // valor de ajuste que o alcance. Sem outra arte e o contrario.
+  if (f == PTV_FONTE_TMDB_OUTRO) return diferente ? PTV_FONTE_TMDB : -1;
+  if (f == PTV_FONTE_TMDB && diferente) return -1;
+  return f;
+}
+
+static int lenta(const PtvFonte *f, int h, int b) {
+  int mh = ptv_fonte_ms(&f[h]), mb = ptv_fonte_ms(&f[b]);
+  if (mb < 0) return 0;                  // base sem medida: nada a comparar
+  if (mh < 0) return f[h].falhas > 0;    // a do destaque so falhou
+  return mh > 2 * mb && mh > 800;
+}
+
+int ptv_sugerir_destaque(const PtvFonte f[PTV_N_FONTES], int hero, int card,
+                         int ajuste, int diferente, PtvSugestao *o) {
+  int k, melhor = -1;
+  if (!o) return 0;
+  memset(o, 0, sizeof *o);
+  if (!f || hero < 1 || hero > PTV_FONTE_FUNDO_MAX || card < 1 || card > PTV_FONTE_FUNDO_MAX) return 0;
+  if (diferente) {
+    int igual = hero == card || f[hero].iguais > 0;
+    int devagar = !igual && lenta(f, hero, card);
+    if (!igual && !devagar) return 0;
+    for (k = 1; k <= PTV_FONTE_FUNDO_MAX; k++) {
+      int aj = ptv_ajuste_da_fonte(k, 1);
+      if (k == card || k == hero || aj < 0 || aj == ajuste) continue;
+      if (ptv_fonte_ms(&f[k]) < 0 || f[k].iguais > 0 || lenta(f, k, card)) continue;
+      if (melhor < 0 || ptv_fonte_ms(&f[k]) < ptv_fonte_ms(&f[melhor])) melhor = k;
+    }
+    o->base = card;
+    o->motivo = igual ? PTV_MOTIVO_IGUAL : PTV_MOTIVO_LENTA;
+    if (melhor > 0) { o->fonte = ptv_ajuste_da_fonte(melhor, 1); o->diferente = 1; o->alvo = melhor; }
+    else if (devagar) { o->fonte = ajuste; o->diferente = 0; o->alvo = card; }
+    else return 0;       // igual ao card e sem outra de verdade: nada a propor
+  } else {
+    if (ajuste <= 0) return 0;
+    for (k = 1; k <= PTV_FONTE_FUNDO_MAX; k++) {
+      int aj = ptv_ajuste_da_fonte(k, 0);
+      if (aj < 0 || aj == ajuste || ptv_fonte_ms(&f[k]) < 0) continue;
+      if (melhor < 0 || ptv_fonte_ms(&f[k]) < ptv_fonte_ms(&f[melhor])) melhor = k;
+    }
+    if (melhor < 0 || melhor == hero || !lenta(f, hero, melhor)) return 0;
+    o->base = melhor; o->fonte = melhor; o->diferente = 0; o->alvo = melhor;
+    o->motivo = PTV_MOTIVO_LENTA;
+  }
+  o->ativa = 1;
+  o->lenta = hero;
+  o->msLenta = ptv_fonte_ms(&f[hero]);
+  o->msBase = ptv_fonte_ms(&f[o->base]);
+  return 1;
+}
+
+static unsigned be16(const unsigned char *p) { return (unsigned)p[0] << 8 | p[1]; }
+static unsigned le16(const unsigned char *p) { return (unsigned)p[1] << 8 | p[0]; }
+static unsigned le24(const unsigned char *p) { return (unsigned)p[2] << 16 | (unsigned)p[1] << 8 | p[0]; }
+
+int ptv_dimensoes(const unsigned char *b, long n, int *w, int *h) {
+  if (!b || !w || !h) return 0;
+  *w = *h = 0;
+  if (n >= 24 && !memcmp(b, "\x89PNG\r\n\x1a\n", 8)) {
+    *w = (int)(be16(b + 16) << 16 | be16(b + 18));
+    *h = (int)(be16(b + 20) << 16 | be16(b + 22));
+    return 1;
+  }
+  if (n >= 10 && (!memcmp(b, "GIF87a", 6) || !memcmp(b, "GIF89a", 6))) {
+    *w = (int)le16(b + 6); *h = (int)le16(b + 8);
+    return 1;
+  }
+  if (n >= 30 && !memcmp(b, "RIFF", 4) && !memcmp(b + 8, "WEBP", 4)) {
+    if (!memcmp(b + 12, "VP8 ", 4)) {
+      *w = (int)(le16(b + 26) & 0x3fff); *h = (int)(le16(b + 28) & 0x3fff); return 1;
+    }
+    if (!memcmp(b + 12, "VP8L", 4) && n >= 25) {
+      unsigned long v = (unsigned long)b[21] | (unsigned long)b[22] << 8 |
+                        (unsigned long)b[23] << 16 | (unsigned long)b[24] << 24;
+      *w = (int)(v & 0x3fff) + 1; *h = (int)((v >> 14) & 0x3fff) + 1; return 1;
+    }
+    if (!memcmp(b + 12, "VP8X", 4)) {
+      *w = (int)le24(b + 24) + 1; *h = (int)le24(b + 27) + 1; return 1;
+    }
+    return 0;
+  }
+  if (n >= 4 && b[0] == 0xFF && b[1] == 0xD8) {
+    long i = 2;
+    while (i + 9 < n) {
+      unsigned m, len;
+      if (b[i] != 0xFF) { i++; continue; }
+      m = b[i + 1];
+      if (m == 0xFF) { i++; continue; }
+      if (m == 0xD8 || m == 0x01 || (m >= 0xD0 && m <= 0xD7)) { i += 2; continue; }
+      len = be16(b + i + 2);
+      if (m >= 0xC0 && m <= 0xCF && m != 0xC4 && m != 0xC8 && m != 0xCC) {
+        *h = (int)be16(b + i + 5); *w = (int)be16(b + i + 7);
+        return 1;
+      }
+      if (len < 2) return 0;
+      i += 2 + len;
+    }
+  }
+  return 0;
+}

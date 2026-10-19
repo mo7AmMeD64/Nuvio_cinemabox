@@ -1,0 +1,15 @@
+{
+  "sourceUrl": "https://pacote.exemplo.invalido/amostra.json",
+  "groups": [{"id": "g1", "name": "Amostra", "color": "#FFBE01"}],
+  "filters": [
+    {"id": "1", "groupId": "g1", "name": "4K", "pattern": "(?i)\\b(2160p|4k|uhd)\\b", "imageURL": "deploy/app/art/badges/r-4k.webp"},
+    {"id": "2", "groupId": "g1", "name": "1080p", "pattern": "(?i)\\b1080p\\b", "imageURL": "deploy/app/art/badges/r-1080.webp"},
+    {"id": "3", "groupId": "g1", "name": "Dolby Vision", "pattern": "(?i)\\b(dv|dovi|dolby[ .]?vision)\\b", "imageURL": "deploy/app/art/badges/v-dv.webp"},
+    {"id": "4", "groupId": "g1", "name": "HDR", "pattern": "(?i)\\bhdr(10)?\\b", "imageURL": "deploy/app/art/badges/v-hdr10.webp"},
+    {"id": "5", "groupId": "g1", "name": "Atmos", "pattern": "(?i)atmos", "imageURL": "deploy/app/art/badges/a-atmos.webp"},
+    {"id": "6", "groupId": "g1", "name": "HEVC", "pattern": "(?i)\\b(hevc|x265|h[ .]?265)\\b", "imageURL": "deploy/app/art/badges/co-x265.webp"},
+    {"id": "7", "groupId": "g1", "name": "WEB-DL", "pattern": "(?i)web[ .-]?(dl|mux)", "tagColor": "#1B5E20", "textColor": "#FFFFFF", "borderColor": "#66BB6A"},
+    {"id": "8", "groupId": "g1", "name": "Multi-áudio", "pattern": "(?i)(eng.*(fre|ger|ita|spa)|multi)", "tagColor": "#7A1FA2", "textColor": "#FFFFFF", "borderColor": "#CE93D8"},
+    {"id": "9", "groupId": "g1", "name": "Sem imagem no disco", "pattern": "(?i)elite", "imageURL": "deploy/app/art/badges/nao-existe.webp", "tagColor": "#37474F", "textColor": "#FFFFFF"}
+  ]
+}

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Host do Nuvio .tpk. Um Program.cs para as tres faixas de API (ver o
+       porque de cada uma em tizen-tpk-spike/dotnet): o GLWindow mudou de
+       assinatura na API9 e de nome na API11. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>tizen80</TargetFramework>
+    <RootNamespace>NuvioTpk</RootNamespace>
+    <AssemblyName>NuvioTpk60</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DefineConstants>$(DefineConstants);NV_API8</DefineConstants>
+    <LangVersion>8.0</LangVersion>
+  </PropertyGroup>
+  <!-- CANARIO do teclado/ditado do sistema (../Texto.cs): so com
+       -p:NvTextoCanario=1 (NUVIO_TPK_TEXTO=1 bash tools/tpk.sh). -->
+  <PropertyGroup Condition="'$(NvTextoCanario)' == '1'">
+    <DefineConstants>$(DefineConstants);NV_TEXTO</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Program.cs" />
+    <Compile Include="../Apps.cs" />
+    <Compile Include="../Video.cs" />
+    <Compile Include="../VideoWindowMetrics.cs" />
+    <Compile Include="../Carga.cs" />
+    <Compile Include="../Texto.cs" Condition="'$(NvTextoCanario)' == '1'" />
+    <!-- Botao de microfone pelo teclado da Samsung (../Voz.cs): release. O canario do teclado o substitui. -->
+    <Compile Include="../Voz.cs" Condition="'$(NvTextoCanario)' != '1'" />
+    <PackageReference Include="Tizen.NET" Version="8.0.*"><ExcludeAssets>Runtime</ExcludeAssets></PackageReference>
+    <PackageReference Include="Tizen.NET.Sdk" Version="1.1.*" />
+  </ItemGroup>
+</Project>

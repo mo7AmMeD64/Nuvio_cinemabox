@@ -1,0 +1,297 @@
+#include "arteurl.h"
+// Cache de texturas com decode FORA da thread de desenho.
+//
+// Por que thread: decode medido no aparelho custa ~30ms por imagem. A 60fps o
+// quadro inteiro tem 16,6ms — decodificar em linha significa perder 2 quadros
+// por card que entra na tela. A thread decodifica para memoria; a thread de
+// desenho so faz o upload GL (que precisa do contexto e e barato).
+//
+// Politica: LRU com teto de itens. Sem teto, percorrer o catalogo inteiro
+// estoura a memoria do app — a TV tem orcamento apertado e ja vimos o web app
+// em 266MB.
+#ifndef NV_TEX_CACHE_H
+#define NV_TEX_CACHE_H
+#include "gl_compat.h"
+
+// TETO DA URL DE ARTE (#200). 512 cortava calado a URL de cartaz que o
+// AIOMetadata monta para o PostersPlus: o modelo da pessoa tem ~690 bytes e,
+// com as chaves do TMDB e do MDBList preenchidas, ~720 — o `logo_language=ru`
+// estava no byte ~517 e caia fora, e o servico, sem idioma, desenhava o cartaz
+// em ingles (MEDIDO: a mesma URL sem o parametro devolve o cartaz ingles). O
+// CatItem.poster usa o mesmo teto (catalogo.h).
+#define NV_TEX_URL_MAX NV_ARTE_URL_MAX
+
+int  tex_iniciar(int max_itens);
+
+// Pasta onde as imagens vindas de URL sao guardadas em disco. Sem ela,
+// tex_obter com http(s) simplesmente nao carrega — o app nao quebra, so fica
+// sem arte.
+void tex_cache_dir(const char *dir);
+/* Marca a variante que a política de decode realmente pedirá para esta
+ * largura de layout (inclui escala/qualidade e o corte small do Metahub). */
+void tex_cache_marcar_larg(int grupo, const char *url, float largLayout,
+                           int essencial, int emUso);
+void tex_encerrar(void);
+
+// Devolve a textura se ja estiver pronta; senao 0 e enfileira o decode.
+// Nunca bloqueia a thread de desenho.
+GLuint tex_obter(const char *caminho);
+// Mesma coisa, com teto de 1920: para a arte que ocupa a tela inteira (hero da
+// home, backdrop do detalhe, arte do player). Com o teto comum de 960 essas
+// tres eram decodificadas com metade da resolucao e ampliadas na tela.
+GLuint tex_obter_hero(const char *caminho);
+// Stage backgrounds: fixed 1280px ceiling, independent of quality/buffer scale.
+GLuint tex_obter_palco(const char *caminho);
+// Idem, sem furar a fila (vizinho do carrossel; ver tex_cache.c).
+GLuint tex_obter_hero_quente(const char *caminho);
+
+// Escala entre o pixel do BUFFER e o pixel de layout (1 na TV, 2 no Mac
+// retina). Definir uma vez no arranque, junto com a do texto.
+void tex_escala(float e);
+
+// QUALIDADE DA IMAGEM: 0 baixa, 1 padrão, 2 alta. Vem da tela de Ajustes.
+//
+// Muda o TETO DE DECODIFICAÇÃO de cada pedido — quanto pixel de origem a arte
+// carrega para o mesmo desenho — e o teto da arte de tela cheia. Vale para o
+// que entrar daqui para frente; o que já está decodificado continua como está.
+void tex_qualidade(int nivel);
+// Reduz uma superficie por media de area para lw x lh, em ABGR8888. Publica
+// para tests/reduzir.c; o decode usa a mesma funcao.
+struct SDL_Surface *tex_reduzir(struct SDL_Surface *src, int lw, int lh);
+// Piramide de mipmaps na CPU (Android; NUVIO_TEX_MIP=cpu|gpu): niveis 1..n
+// encadeados em base->userdata, ate 1x1. Devolve quantos niveis criou (0 em
+// falha, sem nada pendurado). Publica para tests/mipcpu.c.
+int tex_piramide_cpu(struct SDL_Surface *base);
+// Libera a base E os niveis encadeados.
+void tex_piramide_liberar(struct SDL_Surface *base);
+
+// Como tex_obter, mas dizendo COM QUE LARGURA a arte vai ser desenhada, em
+// pixels de layout. O teto de decodificacao sai dai, em vez do padrao unico de
+// 640 — que foi dimensionado pela maior arte de card e cobrava o mesmo preco de
+// um poster de 212. Ver a nota em tex_cache.c: e a diferenca entre caber ~40
+// texturas no orcamento e caber ~230.
+//
+// Prefira esta a tex_obter em qualquer arte de lista: e onde o cache estoura.
+GLuint tex_obter_larg(const char *caminho, float largLayout);
+// Publica sob demanda a paleta ja extraida, inclusive de retratos opacos.
+// Chamar a cada quadro enquanto o decode nao terminou; nao pede novo decode.
+void tex_publicar_paleta(const char *caminho);
+// Entrega a textura menor ja existente enquanto a maior e reprocessada.
+GLuint tex_obter_larg_qualquer(const char *caminho, float largLayout);
+// Para LOGO DE TITULO: igual as duas acima, mas o pedido fura a fila de rede e
+// a de decode (ate a frente do fundo de tela cheia). Ver tex_cache.c.
+GLuint tex_obter_logo_larg(const char *caminho, float largLayout);
+GLuint tex_obter_logo_larg_qualquer(const char *caminho, float largLayout);
+
+// Como tex_obter_larg, para arte QUE SO VALE POR UM INSTANTE: o quadro de uma
+// sequencia animada, que a tela mostra por 67 ms e troca. O cache a despeja
+// antes de qualquer cartaz assim que ela sai da tela — senao noventa quadros
+// por volta varrem do cache as fileiras que a pessoa ainda vai rever. Ver a
+// nota em despejar(), tex_cache.c.
+GLuint tex_obter_passageira(const char *caminho, float largLayout);
+
+// Caminho do ARQUIVO local de uma URL, ou NULL enquanto ele nao chegou. Um
+// caminho que ja e local volta como veio. Nunca bloqueia: quando o arquivo
+// ainda nao esta no cache de disco, pede o download pela MESMA fila de rede das
+// imagens e devolve NULL — chamar de novo no quadro seguinte e o esperado.
+//
+// Existe para o GIF de foco das colecoes (#29): gif_textura() precisa do
+// ARQUIVO para montar o blob que a <img> anima, e nao de uma textura. tex_obter
+// nao serve porque devolve UM quadro decodificado e nenhum caminho de volta.
+//
+// Devolve ponteiro para buffer ESTATICO: use antes da proxima chamada, e so da
+// thread de desenho.
+const char *tex_arquivo(const char *url);
+
+// Os 4 PRIMEIROS BYTES do que a rede entregou para `caminho` (1), ou 0 quando
+// o item nao existe ou ainda nao baixou. Nao pede nada. Existe para o cartaz
+// de colecao (#141): decidir se a CAPA e um GIF animavel e dizer no log em
+// que formato um "GIF" chegou. No Tizen so GIF vira arquivo; o resto vive na
+// memoria do item e some no decode, e esta e a unica testemunha que sobra.
+int tex_magica(const char *caminho, unsigned char magica[4]);
+
+// Proporcao (w/h) da textura ja carregada; 0 se ainda nao esta pronta.
+// Necessaria para o "cover" do shader — sem ela a arte estica.
+float tex_aspecto(const char *caminho);
+// Largura da IMAGEM DE ORIGEM (o arquivo, antes de reduzir), 0 se desconhecida
+// ou ainda nao decodificada. Serve para recusar uma arte pequena demais para o
+// lugar (still de episodio de 400 px esticado no destaque, #85).
+int   tex_largura_fonte(const char *caminho);
+
+// ESTA ARTE JA FALHOU? 1 quando o cache tentou e nao conseguiu (404, corpo
+// vazio, formato que nenhum leitor aceita).
+//
+// Existe para quem tem UMA RESERVA e precisa decidir entre esperar e trocar: o
+// still do episodio nao existe para toda serie, e o destaque tem de cair na
+// arte do titulo em vez de ficar cinza. Sem isto, "ainda carregando" e "nunca
+// vai vir" sao o mesmo 0 devolvido por tex_obter_*.
+int tex_falhou(const char *caminho);
+
+// 1 quando a arte e uma marca ESCURA E ACROMATICA — o caso do logo preto — e
+// portanto deve ser desenhada tingida (GFX_MARCA) em vez de com as cores dela.
+//
+// Existe por causa do LOGO DO TITULO. O TMDB serve a mesma marca em versao
+// clara e escura e NAO diz qual e qual: nao ha campo para isso, e o ranking do
+// proprio app web ordena so por idioma e nota. Quando cai a escura, ela some
+// sobre o backdrop escuro.
+//
+// SAO DUAS CONDICOES, e a segunda importa tanto quanto a primeira: escura o
+// bastante (luminancia) E sem cor propria (croma). So a luminancia tingiria de
+// branco tambem um logo de marca vermelho-escuro, que e cor deliberada e nao a
+// variante errada — trocaria um defeito por outro. Ambas medidas uma unica vez,
+// na thread de decode, amostrando 1/16 dos pixels opacos.
+//
+// Responde 0 enquanto a textura nao carregou: nao tingir e o padrao seguro.
+int  tex_marca_escura(const char *caminho);
+
+// O logo e de UM TOM SO (marca de uma cor, sem nada dentro)? 1 sim, 0 nao
+// (varios tons: azulejo claro com a marca escura, logo colorido com
+// detalhe), -1 enquanto nao carregou. So o de tom unico pode ser tingido pela
+// forma do alfa (GFX_MARCA) sem virar um bloco chapado.
+#define NV_LOGO_TOM_UNICO_DESVIO 28
+int  tex_logo_tom_unico(const char *caminho);
+
+// Identificador estável derivado do caminho, usado apenas no trace de uma
+// sessão. Não imprime nem armazena a URL original.
+unsigned long tex_hash_public(const char *caminho);
+
+// A COR DE FUNDO da arte — a media da borda, quando a borda e opaca (logo com
+// fundo proprio, como o quadrado cinza do Disney+). Devolve 1 com a cor; 2
+// quando a borda e transparente (logo recortado: nao ha fundo, quem desenha
+// usa o proprio azulejo); 0 enquanto a textura nao carregou. Para o guia
+// pintar o cartao em foco com a cor por tras do logo do canal.
+int  tex_cor_fundo(const char *caminho, float *r, float *g, float *b);
+// Luminancia media dos pixels opacos, 0..255; -1 enquanto nao carregou. E a
+// mesma medida de tex_marca_escura, exposta crua: o guia a usa para escolher
+// um azulejo ESCURO sob logo claro (o Paramount+ branco sumia no claro).
+int  tex_luminancia(const char *caminho);
+// 1 se a textura carregada tem alfa 255 em TODO pixel (conferido no decode);
+// 0 se tem transparencia, nao carregou ou nao se sabe.
+int  tex_opaca(const char *caminho);
+
+// Chamar uma vez por quadro, na thread de desenho: sobe para a GPU o que a
+// thread de decode terminou. Devolve quantas subiu.
+int tex_bombear(int max_por_quadro);
+// Estado por tela: aguarda dois quadros parados; no maximo um pedido/quadro.
+typedef struct { float scroll; unsigned long quadro; int parados, direcao; } TexLookahead;
+int tex_lookahead_parado(TexLookahead *s, float scroll);
+// Versao em movimento: devolve o sinal da rolagem (+1/-1) uma vez por quadro
+// por chamador, para aquecer o proximo cartao da borda que entra.
+int tex_lookahead_mover(TexLookahead *s);
+int tex_lookahead_pedir(const char *caminho, float largura);
+
+// RECUSA NO PONTO DO PEDIDO (item 4 da pesquisa plx). A grade declara uma vez
+// por quadro se esta em movimento (`tex_grade_movendo`), a direcao dela em
+// cards por quadro (`tex_grade_velocidade`) e marca, em volta de cada cartao,
+// se aquela arte esta fora da janela visivel (`tex_pedido_fora`, niveis
+// 0/1/2/3 descritos no .c). O cache recusa, ANTES de enfileirar rede/decode,
+// o pedido NOVO de arte fora da janela: nivel 2 (fora da tela) sempre, nivel
+// 1 (na borda) so em movimento; o nivel 3 (fora, no lado em que a rolagem
+// entra) NUNCA recusa — vira passageiro, primeiro a sair no despejo — e arte
+// ja conhecida sempre passa. Contagem em `tex_n_recusa` (telemetria/teste).
+void tex_grade_movendo(int movendo);
+void tex_grade_velocidade(float passos);
+// A direcao declarada, como quem desenha a usa para marcar quem entra.
+float tex_grade_direcao(void);
+void tex_pedido_fora(int nivel);
+extern int tex_n_recusa;
+
+// Telemetria de quadro do cache: quantas buscas por caminho e quanto custaram.
+// acharIndice era LINEAR sobre 192 slots e cada card da lista chama 2-3 vezes
+// por quadro; estes numeros dizem se isso pesa de verdade ou nao.
+// QUANTO O QUADRO GASTOU SUBINDO PIXEL PARA A GPU, e nao so quanto tempo o
+// bombeamento levou. Uma unica arte de heroi e 1920x1080x4 = 8 MB num
+// glTexImage2D so; saber que `bomb` custou 90 ms sem saber se foi UMA textura
+// grande ou trinta pequenas leva a consertos diferentes. Zerados por quadro
+// por quem mede (main.c).
+extern int    tex_upl_n;
+extern long   tex_upl_bytes;
+// Pedidos que foram do indice do cache de disco direto ao decode, sem esperar
+// a fila de rede (discoDireto), e downloads poupados pela memoria de arte
+// inexistente (404 lembrado / host em prazo estourado).
+extern int    tex_disco_direto;
+int tex_negativas_poupadas(void);
+extern int    tex_n_busca;
+// PEDIDOS QUE VOLTARAM SEM TEXTURA (arte ainda a caminho; a que falhou de vez
+// nao conta). So sobe, nunca zera: quem desenha uma vez so (o fundo parado do
+// painel de Salvos) compara antes e depois para saber se a copia saiu inteira.
+extern unsigned tex_n_falta;
+extern double tex_ms_busca;
+void tex_novo_quadro(void);
+
+// `quentes` e o que foi desenhado neste quadro ou no anterior — o conjunto
+// que a tela precisa. Se ele passa do orcamento, o cache nao tem como parar de
+// despejar, e o numero diz isso antes de qualquer hipotese.
+void tex_estatisticas(int *itens, int *pendentes, long *bytes,
+                      int *quentes, long *bytesQuentes);
+// Despejos de TEXTURA desde a ultima zerada (quem mede zera), e quantos deles
+// levaram arte que estava na tela. O `despejos=` do relatorio de FPS conta o
+// cache de TEXTO, e por muito tempo foi lido como se fosse este.
+extern int tex_despejos;
+extern int tex_despejos_quentes;
+// Os mesmos, acumulados desde o arranque (ninguem zera): para a tela de Ajustes.
+extern long tex_despejos_total;
+extern long tex_despejos_quentes_total;
+
+// O orcamento decidido no arranque (ver orcamentoMB em tex_cache.c): MB, a RAM
+// total lida (0 sem /proc), como foi decidido (0 = pela RAM, 1 = cravado na
+// build, 2 = NUVIO_TEX_MB) e quantos slots o cache tem.
+void tex_orcamento_info(int *mb, long *memTotal, int *fixo, int *slots);
+// Fios que participam do caminho de artes. O diagnostico mostra estes
+// limites reais do build, em vez de pedir que a pessoa configure threads.
+void tex_threads_info(int *usadas, int *disponiveis);
+// Teto escolhido em Ajustes, em MB, aplicado ao vivo e travado pelo que a RAM
+// da TV suporta; 0 volta ao automatico. `fixo` passa a 3 quando esta em vigor.
+void tex_definir_orcamento_mb(int mb);
+// O maior teto, em MB, que a RAM desta TV deixa Ajustes pedir (o mesmo que
+// tex_definir_orcamento_mb aplica): Ajustes usa para mostrar o valor efetivo.
+int tex_teto_ram_mb(void);
+// Aviso de pressao de memoria do sistema (Android onTrimMemory, de qualquer fio):
+// baixa o teto por 30 s e o proximo quadro despeja arte fria ate caber.
+// `tex_pressao_pct` e a tabela nivel -> % do teto que fica (100 = sem efeito).
+void tex_pressao_memoria(int nivel);
+int  tex_pressao_pct(int nivel);
+// Android: video aberto derruba o teto para tex_pressao_play_pct()%% pelo tempo
+// que a sessao durar (trim do sistema expira em 30 s; o video nao). 0 fecha.
+void tex_pressao_reproducao(int ligada);
+int  tex_pressao_play_pct(void);
+// webOS/.tpk, a cada 3 s: MemAvailable em MiB (< 0 = desconhecido); `player`
+// e legado (o piso de reproducao liga em avisarCascaAberto, nao aqui).
+void tex_memoria_livre(long livreMb);
+// Teto a 25% e despejo agora, no fio de desenho (sem esperar o quadro), e de
+// tudo que o podar nao ve: superficie decodificada nao publicada, bytes
+// baixados em fila e slots FALHOU. Antes de reabrir o pipeline com a TV sem
+// memoria (#415).
+void tex_aliviar(void);
+// O valor que "Automatico" significa: o perfil aprovado pelo diagnostico, ou
+// o padrao do aparelho com 0. Travado pelo teto da RAM; nao passa por cima de
+// Ajustes, de NV_TEX_MB_FIXO nem de NUVIO_TEX_MB.
+void tex_definir_orcamento_auto_mb(int mb);
+// Padrao automatico realmente guardado, mesmo sob um valor manual ativo.
+// Permite desfazer um experimento sem promover seu candidato depois que a
+// pessoa voltar de uma escolha manual para Automatico.
+int tex_orcamento_auto_mb(void);
+// PARAMETROS DO PERFIL QUE MUDAM AO VIVO, sem reiniciar (ver perfiltv.h):
+// quantos fios de rede de arte ficam ativos (1..criados; o excedente espera)
+// e o teto de decodificacao do heroi (0 = so a regra de qualidade). O teto do
+// heroi vale para o que for decodificado daqui em diante.
+void tex_definir_fios_rede(int n);
+int  tex_fios_rede(void);
+void tex_definir_teto_heroi(int larg);
+// Efetivo (perfil e qualidade juntos) e so o do perfil (0 = sem teto proprio).
+int  tex_teto_heroi(void);
+int  tex_teto_heroi_perfil(void);
+// Esquece uma arte PRONTA (ou falhada) para ela ser pedida de novo do zero —
+// o reteste do diagnostico mede o decode com o perfil novo. Arte em voo nao e
+// tocada. Devolve 1 se esqueceu. So da thread de desenho.
+int  tex_esquecer(const char *caminho);
+// Ocupacao em bytes, uma amostra por segundo, do mais antigo ao mais novo.
+// Devolve quantas escreveu (ate `max`, no maximo 120).
+int  tex_historico(long *saida, int max);
+long tex_orcamento_bytes(void);
+
+#endif
+
+// Quanto o cache de DISCO ocupa. No Tizen o "disco" e MEMFS: isto e RAM que
+// cresce a sessao inteira e nao aparece no [mem] nem no total de texturas.
+long tex_cache_disco_bytes(void);

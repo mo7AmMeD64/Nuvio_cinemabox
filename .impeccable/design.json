@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-02T23:59:00Z",
+  "title": "Nuvio TV - Cinema contemporaneo",
+  "extensions": {
+    "northStar": "Cinema contemporaneo",
+    "tone": [
+      "elegante",
+      "discreto",
+      "legivel a distancia"
+    ],
+    "productRegister": "product",
+    "colorRoles": {
+      "accent": {
+        "dynamic": true,
+        "source": "ajustes_acento()",
+        "referenceTheme": "rose",
+        "referenceHex": "#EC407A",
+        "rule": "Nunca fixar o tema da captura; tinta clara para acento colorido e tinta escura para branco/quase branco."
+      },
+      "background": {
+        "hex": "#0D0D0D",
+        "dynamic": false
+      },
+      "controlRest": {
+        "hex": "#303030",
+        "dynamic": false
+      },
+      "cardRest": {
+        "hex": "#101114",
+        "dynamic": false
+      },
+      "cardFocusRoseReference": {
+        "hex": "#23151C",
+        "dynamic": true
+      }
+    },
+    "elevation": {
+      "default": "Glass UI 'ilha' (02/10/2026): every panel is an island in the clock island's material — dark cool core (glass ~80% via gfx_vidro_folha, or solid #121316 when ajustes_vidro()==0), one faint corner light (gfx_luz_canto), short GFX_SOMBRA, no outline, large radius (sheet 28, modal 30-36, row 20-22, pill 50%).",
+      "focus": "Row/card focus = one step lighter surface (glass white 12-14%, solid #2B2D34), no ring, no accent block. Button/key/chip focus = full pill in the accent with contrast ink.",
+      "accent": "Accent only marks state or key elements (active page dot, playing/previous-pick marks, 'Best for this TV', MP4, HDR group tag, chip on).",
+      "badges": "Quality logos all in the same white ink (dim off-focus, bright on focus); per-category color was rejected.",
+      "gradients": "8-bit panels band: gradients only through shaders that call nv_dither; never stacked gfx_cor strips. GPU level 1 uses the cheap Bayer dither.",
+      "glow": "Not a focus treatment."
+    },
+    "motion": {
+      "principle": "Motion clarifies focus and transition; never carries meaning by itself.",
+      "reducedMotion": "Remove transitions while retaining the complete selected state."
+    },
+    "componentExamples": [
+      {
+        "name": "episode-row-rest",
+        "nativeSpec": "Selectable content card; rounded dark surface #101114; clear title and metadata; no decorative border."
+      },
+      {
+        "name": "episode-row-focused",
+        "nativeSpec": "Approach A: restrained dark accent wash derived from the active theme, light text, preserved poster ratio; no glow."
+      },
+      {
+        "name": "focused-content-row",
+        "nativeSpec": "Source, episode actions, saved/social/alerts side panels, and the expanded global menu use a solid theme-accent fill on the focused item, contrast-aware ink, and a soft restrained accent halo behind it. Keep inactive surfaces neutral; no glass, gradient, top reflection, or improvised outline. The corner notification toast stays matte neutral with an accent icon and soft halo."
+      },
+      {
+        "name": "close-ghost",
+        "nativeSpec": "No box at rest; subtle neutral surface and standard focus cue only while selected."
+      }
+    ],
+    "referenceMockups": [
+      "design/glass-ilha/glass-ilha.html",
+      "design/ilha/ilha-mockup.html"
+    ],
+    "rule": "A build that does not match the mockup side by side, in both glass and solid, is wrong."
+  }
+}

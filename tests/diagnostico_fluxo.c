@@ -1,0 +1,257 @@
+// O FLUXO DA APLICACAO AUTOMATICA contra o cache de texturas de verdade:
+// aplica -> reteste pior -> restaura; aplica -> reteste melhor -> mantem e
+// grava; escolha manual de Ajustes respeitada; perfil lido do disco limitado
+// pela RAM; Voltar no meio desfaz. Sem janela e sem rede: as medidas dos passes
+// sao injetadas, e o que se confere e o estado do tex_cache depois.
+//
+// Inclui o .c para chegar nas funcoes static (mesma tecnica de texfila.c).
+// No Mac nao ha /proc/meminfo: a RAM e "desconhecida", o que na tabela da LG
+// da automatico 96 MB, teto 160, 4 fios e heroi 1920 (perfiltv.c).
+#include "../src/diagnostico.c"
+#include "nvtmp.h"
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+static int orcamento(void) { int mb = 0; tex_orcamento_info(&mb, NULL, NULL, NULL); return mb; }
+
+// A tela usa o cache REAL, inclusive quando o candidato foi restaurado ou
+// algum limite local impediu o valor solicitado. Nao basta testar o veredito.
+static void conferePerfilResultado(int mantido) {
+  PtvPerfil antes, atual, real;
+  perfilAtual(&real, NULL, NULL);
+  perfilDoResultado(&antes, &atual);
+  assert(!memcmp(&atual, &real, sizeof real));
+  assert(!memcmp(&antes, mantido ? &d.perfAntes : &real, sizeof real));
+}
+
+static void reset(DiagnosticoModo modo) {
+  free(d.cfgAntes);
+  memset(&d, 0, sizeof d);
+  d.modo = modo;
+}
+
+static PtvMedida med(int ms, int falhas) {
+  PtvMedida m;
+  memset(&m, 0, sizeof m);
+  m.artesMs = ms; m.falhas = falhas; m.prontas = 10 - falhas; m.piorQuadroMs = 20;
+  return m;
+}
+
+int main(void) {
+  char dir[NVT_MAX]; nvt_set(dir, sizeof dir, "/nuvio-diag-fluxo-XXXXXX");
+  char *cfg;
+  assert(mkdtemp(dir));
+  setenv("NUVIO_DADOS", dir, 1);
+  assert(SDL_Init(SDL_INIT_TIMER) == 0);
+  dados_iniciar(dir);
+  assert(tex_iniciar(64));
+  assert(orcamento() == 96 && tex_fios_rede() == 4 && tex_teto_heroi() == 1920);
+
+  // 0. OK NA APRESENTACAO (issue #113): grava a marca de "vista". Com a trava
+  // de verdade (NV_DADOS_TRAVA_TESTE, a do Tizen), a trava dupla abortava aqui.
+  assert(!apresentacaoVista());
+  marcarApresentacaoVista();
+  assert(apresentacaoVista());
+  puts("ok  OK na apresentacao grava a marca sem travar duas vezes");
+
+  // 1. QUALIDADE, reteste PIOR: o candidato (160 MB) sai e o anterior volta.
+  reset(DIAG_QUALIDADE);
+  assert(aplicarCandidato() == 1);
+  assert(orcamento() == 160 && atomic_load(&d.experimento) == 1);
+  cfg = dados_ler("diagnostico-otimizacao.checkpoint");
+  assert(cfg && strstr(cfg, "experiment_pending")); free(cfg);
+  d.medAntes = med(1000, 0);
+  d.medDepois = med(2000, 0);
+  concluirComparacao();
+  assert(d.aplicacao == DA_RESTAURADO_AUTO && d.motivo);
+  assert(orcamento() == 96 && atomic_load(&d.experimento) == 0);
+  assert(!dados_ler("diagnostico-otimizacao.checkpoint"));
+  assert(!dados_ler("diagnostico-otimizacao.cfg"));
+  assert(d.perfCand.texMb == 160); // continua sendo o candidato, nao o ativo
+  conferePerfilResultado(0);
+  montarRelatorio();
+  assert(strstr(d.relatorio, "perfil_candidato=160|4|1920\n"));
+  assert(strstr(d.relatorio, "perfil_testado=160|4|1920\n"));
+  assert(strstr(d.relatorio, "perfil_ativo=96|4|1920\n"));
+  assert(strstr(d.relatorio, "perfil_aprovado=none\n"));
+  assert(strstr(d.relatorio, "tex_orcamento_origem=automatic\n"));
+  assert(strstr(d.relatorio, "tex_orcamento_auto_mb=96\n"));
+  assert(strstr(d.relatorio, "tex_teto_aparelho_mb=160\n"));
+  puts("ok  aplicar -> reteste pior -> restaura sozinho (sem gravar perfil)");
+
+  // 1b. DESEMPENHO, reteste um pouco melhor mas DENTRO DO RUIDO (100 ms de
+  // 1000, a margem e 15%): o anterior volta e nada vai para o disco. Era o
+  // vaivem de perfil dos relatorios de 23/09.
+  reset(DIAG_DESEMPENHO);
+  assert(aplicarCandidato() == 1);
+  assert(tex_fios_rede() == 2 && tex_teto_heroi() == 1280);
+  d.medAntes = med(1000, 0);
+  d.medDepois = med(900, 0);
+  concluirComparacao();
+  assert(d.aplicacao == DA_RUIDO && d.motivo);
+  assert(!strcmp(aplicacaoNome(d.aplicacao), "mantido_ruido"));
+  assert(tex_fios_rede() == 4 && tex_teto_heroi() == 1920 && orcamento() == 96);
+  assert(atomic_load(&d.experimento) == 0);
+  assert(!dados_ler("diagnostico-otimizacao.checkpoint"));
+  assert(!dados_ler("diagnostico-otimizacao.cfg"));
+  conferePerfilResultado(0);
+  puts("ok  reteste dentro do ruido: o anterior volta, nada gravado (mantido_ruido)");
+
+  // 1c. So aumentar memoria sem ganho nem arte visivel descartada nao ajuda.
+  // Na TV de 2 GB isso e 128 -> 300; no host sem MemTotal e 96 -> 160.
+  // A tela deve mostrar o orcamento restaurado, nunca a promessa do candidato.
+  reset(DIAG_QUALIDADE);
+  assert(aplicarCandidato() == 1 && orcamento() == 160);
+  d.medAntes = med(1000, 0);
+  d.medDepois = med(950, 0);
+  concluirComparacao();
+  assert(d.aplicacao == DA_RUIDO && orcamento() == 96);
+  conferePerfilResultado(0);
+  puts("ok  aumento de memoria sem ganho: resultado mostra cache ativo restaurado");
+
+  // 2. DESEMPENHO, reteste CLARAMENTE melhor: fica, e vai para o disco.
+  reset(DIAG_DESEMPENHO);
+  assert(aplicarCandidato() == 1);
+  assert(tex_fios_rede() == 2 && tex_teto_heroi() == 1280 && orcamento() == 96);
+  d.medAntes = med(1000, 0);
+  d.medDepois = med(800, 0);
+  concluirComparacao();
+  assert(d.aplicacao == DA_MANTIDO);
+  assert(tex_fios_rede() == 2 && tex_teto_heroi() == 1280);
+  conferePerfilResultado(1);
+  // O perfil exibido e lido do cache ate quando a memoria foi mudada depois
+  // da rodada: d.perfCand deixa de representar o que esta em uso nesta TV.
+  tex_definir_orcamento_mb(300);
+  assert(d.perfCand.texMb == 96 && orcamento() == 160);
+  conferePerfilResultado(1);
+  tex_definir_orcamento_mb(0);
+  cfg = dados_ler("diagnostico-otimizacao.cfg");
+  assert(cfg && strstr(cfg, "fios_rede=2") && strstr(cfg, "heroi=1280")); free(cfg);
+  montarRelatorio();
+  assert(strstr(d.relatorio, "perfil_testado=96|2|1280\n"));
+  assert(strstr(d.relatorio, "perfil_aprovado=96|2|1280\n"));
+  puts("ok  aplicar -> reteste melhor -> mantem e grava o perfil");
+
+  // 3. Restaurar anterior (botao): volta ao que valia e apaga o perfil.
+  restaurarManual();
+  assert(d.aplicacao == DA_RESTAURADO_MANUAL);
+  assert(tex_fios_rede() == 4 && tex_teto_heroi() == 1920);
+  conferePerfilResultado(0);
+  assert(!dados_ler("diagnostico-otimizacao.cfg"));
+  puts("ok  restaurar anterior desfaz o perfil mantido");
+
+  // 4. Uma falha a mais no reteste reprova mesmo mais rapido.
+  reset(DIAG_DESEMPENHO);
+  assert(aplicarCandidato() == 1);
+  d.medAntes = med(1000, 0);
+  d.medDepois = med(500, 1);
+  concluirComparacao();
+  assert(d.aplicacao == DA_RESTAURADO_AUTO && tex_fios_rede() == 4);
+  conferePerfilResultado(0);
+  puts("ok  falha a mais no reteste restaura");
+
+  // 5. Voltar no meio: o experimento sai, uma vez so.
+  reset(DIAG_QUALIDADE);
+  assert(aplicarCandidato() == 1 && orcamento() == 160);
+  assert(desfazerExperimento() == 1 && orcamento() == 96);
+  assert(desfazerExperimento() == 0);
+  d.aplicacao = DA_CANCELADO;
+  conferePerfilResultado(0);
+  puts("ok  cancelar no meio desfaz o candidato");
+
+  // 6. ESCOLHA MANUAL em Ajustes (300 pedido, 160 e o teto sem MemTotal): o
+  // candidato nao mexe no orcamento, so no resto.
+  tex_definir_orcamento_mb(300);
+  assert(orcamento() == 160);
+  reset(DIAG_DESEMPENHO);
+  assert(aplicarCandidato() == 1);
+  assert(orcamento() == 160 && tex_fios_rede() == 2);
+  conferePerfilResultado(0);
+  assert(desfazerExperimento() == 1);
+  tex_definir_orcamento_mb(0);
+  assert(orcamento() == 96);
+  puts("ok  memoria escolhida em Ajustes nao e tocada pelo otimizador");
+
+  // 7. O candidato igual ao que vale nao aplica nada.
+  reset(DIAG_QUALIDADE);
+  tex_definir_orcamento_auto_mb(160);
+  assert(aplicarCandidato() == 0 && d.aplicacao == DA_IGUAL);
+  conferePerfilResultado(0);
+  tex_definir_orcamento_auto_mb(0);
+  puts("ok  candidato igual ao perfil atual: nada aplicado");
+
+  // Uma escolha manual tardia conserva seu valor e tambem o automatico
+  // anterior: voltar a Automatico nao pode ressuscitar o candidato rejeitado.
+  reset(DIAG_QUALIDADE);
+  assert(aplicarCandidato() && orcamento() == 160);
+  tex_definir_orcamento_mb(128);
+  d.medAntes = med(1000, 0); d.medDepois = med(800, 0);
+  concluirComparacao();
+  assert(d.aplicacao == DA_ALTERADO && orcamento() == 128);
+  assert(tex_orcamento_auto_mb() == 96);
+  tex_definir_orcamento_mb(0);
+  assert(orcamento() == 96 && !dados_ler("diagnostico-otimizacao.cfg"));
+  puts("ok  escolha manual tardia nao promove candidato ao voltar para Automatico");
+
+  // 8. ARRANQUE: perfil do disco acima do teto (TV trocada, arquivo antigo) e
+  // limitado; checkpoint pendente (experimento interrompido) e descartado.
+  dados_gravar("diagnostico-otimizacao.cfg", "versao=2\nmodo=qualidade\ntex_mb=999\nfios_rede=9\nheroi=3840\n");
+  dados_gravar("diagnostico-otimizacao.checkpoint", "versao=2\nestado=experiment_pending\n");
+  diagnostico_recuperar_checkpoint();
+  assert(orcamento() == 160 && tex_fios_rede() == 4 && tex_teto_heroi() == 1920);
+  assert(!dados_ler("diagnostico-otimizacao.checkpoint"));
+  puts("ok  perfil do disco limitado pela RAM; experimento interrompido descartado");
+
+  // Mesmo com manual ativo no arranque, o automatico aprovado deve voltar
+  // por baixo: e o comportamento real do setter do cache, nao so um double.
+  tex_definir_orcamento_mb(128);
+  tex_definir_orcamento_auto_mb(96);
+  assert(orcamento() == 128 && tex_orcamento_auto_mb() == 96);
+  diagnostico_recuperar_checkpoint();
+  assert(orcamento() == 128 && tex_orcamento_auto_mb() == 160);
+  tex_definir_orcamento_mb(0);
+  assert(orcamento() == 160);
+  puts("ok  arranque manual conserva Automatico aprovado ao voltar para ele");
+
+  // 9. SUGESTAO DO DESTAQUE: o reteste pior desfaz a troca do ajuste.
+  reset(DIAG_QUALIDADE);
+  ajustes_definir_destaque(3, 1);          // TMDB, outra arte ligada
+  d.sugEstado = DS_TESTANDO;
+  d.sugFonteAntes = 3; d.sugDifAntes = 1;
+  ajustes_definir_destaque(2, 1);          // o que a sugestao aplicou
+  d.sugA = med(1000, 0);
+  d.sugB = med(3000, 0);
+  concluirSugestao();
+  assert(d.sugEstado == DS_DESFEITA && ajustes_hero_fonte() == 3 && ajustes_hero_arte_diferente());
+  d.sugEstado = DS_TESTANDO;
+  ajustes_definir_destaque(0, 0);
+  d.sugA = med(3000, 0);
+  d.sugB = med(1000, 0);
+  concluirSugestao();
+  assert(d.sugEstado == DS_MANTIDA && ajustes_hero_fonte() == 0 && !ajustes_hero_arte_diferente());
+  puts("ok  sugestao do destaque: pior desfaz, melhor mantem");
+
+  // 10. POR PEDIDO NO RELATORIO: o caso da C9 (24/09) — duas artes da Apple
+  // de ~1,4 s e um prazo estourado de 6 s. A soma (8718) continua em
+  // download_ms; a media dos que deram certo e o pior pedido vem a parte.
+  reset(DIAG_QUALIDADE);
+  memset(d.fonte, 0, sizeof d.fonte);
+  d.fonte[PTV_FONTE_APPLE].ok = 2;
+  d.fonte[PTV_FONTE_APPLE].falhas = 1;
+  d.fonte[PTV_FONTE_APPLE].downloadMs = 8718;
+  d.fonte[PTV_FONTE_APPLE].downloadOkMs = 2718;
+  d.fonte[PTV_FONTE_APPLE].downloadPiorMs = 6000;
+  montarRelatorio();
+  assert(strstr(d.relatorio, "platform=lg\n"));
+  assert(strstr(d.relatorio, "arte_fonte=apple|ok=2|falhas=1|resolve_ms=0|download_ms=8718|"));
+  assert(strstr(d.relatorio, "|download_medio_ms=1359|download_pior_ms=6000\narte_fonte=fanart"));
+  assert(strstr(d.relatorio, "arte_fonte=fanart|ok=0|falhas=0|") &&
+         strstr(strstr(d.relatorio, "arte_fonte=fanart"), "download_medio_ms=-1|download_pior_ms=0\n"));
+  puts("ok  relatorio: media e pior pedido por fonte, alem da soma");
+
+  tex_encerrar();
+  { char cmd[128]; snprintf(cmd, sizeof cmd, "rm -rf '%s'", dir); if (system(cmd)) {} }
+  return 0;
+}

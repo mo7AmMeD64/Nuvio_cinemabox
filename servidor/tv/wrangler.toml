@@ -1,0 +1,15 @@
+name = "nuvio-tv"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# Site da TV VIDAA: tools/vidaa-site.sh monta build/vidaa-site/ (tv/versao.txt +
+# tv/<versao>/{mt,st}/...). run_worker_first em /tv/*: o worker precisa entrar
+# no meio do caminho para resolver /tv -> a versao atual e por COOP/COEP no mt/
+# (ver rotaTv em src/index.js).
+#
+# PUBLIQUE SO POR tools/vidaa-publicar.sh: ele recusa um site vazio. Um
+# `wrangler deploy` direto com build/vidaa-site vazio apaga a pagina da TV.
+[assets]
+directory = "../../build/vidaa-site"
+binding = "ASSETS"
+run_worker_first = ["/tv/*"]

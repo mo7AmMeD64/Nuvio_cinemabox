@@ -1,0 +1,22 @@
+name: Feature request
+description: Suggest something new or an improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: Describe the idea and why it helps. Screenshots from other apps are welcome.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      multiple: true
+      options:
+        - LG webOS
+        - Samsung Tizen
+        - Android TV / Google TV
+        - Hisense VIDAA
+        - All

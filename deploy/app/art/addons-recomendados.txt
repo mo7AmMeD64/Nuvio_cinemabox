@@ -1,0 +1,72 @@
+# Addons recomendados — CURADORIA DO DONO, não ranking.
+#
+# Esta lista aparece no GUIA DE TV como sugestão de instalação — por isso SÓ
+# ENTRA ADDON DE CANAL (catálogo type "tv" ou "channel"). Catálogo de filme,
+# série ou legenda não tem lugar aqui: o painel do guia é de provedores de
+# canal, e um addon que não muda a lista de canais confunde quem instala.
+#
+# Ela existe porque Ela existe porque NÃO
+# HÁ ranking público de addons Stremio: não há catálogo oficial, não há contagem
+# de instalações acessível, e o que circula são listas de comunidade. Então o
+# app não mede popularidade e não finge medir — ele mostra o que quem mantém o
+# projeto escolheu mostrar.
+#
+# Por isso a tela NÃO deve exibir número de instalações, estrela, "em alta" nem
+# qualquer coisa que afirme popularidade. O rótulo honesto é "recomendados".
+#
+# FORMATO: uma linha por addon, separada por TAB (não por espaço — nome de addon
+# contém espaço, e o "AIOStreams | ElfHosted" já mostrou que também contém "|"):
+#
+#   <nome><TAB><url do manifest.json><TAB><descrição em português><TAB><descrição em inglês>
+#
+# A quarta coluna é o que a tela em inglês mostra. Sem ela, mostra a portuguesa
+# — é melhor que nada, mas é mistura de língua; preencha as duas.
+#
+# Linha começando com # é comentário. Arquivo vazio ou ausente faz a seção
+# simplesmente não aparecer — isso é comportamento esperado, não erro.
+#
+# CUIDADO AO PREENCHER: url de addon frequentemente EMBUTE CHAVE DE API no
+# caminho (AIOStreams, Debridio, Xperience). Não ponha aqui um manifest que
+# carregue credencial sua — esta lista vai dentro do pacote publicado, e quem
+# baixar o .ipk ou o .wgt lê o arquivo. Só entra addon de URL pública.
+#
+# ---------------------------------------------------------------------------
+# COMO ESTA LISTA FOI FEITA (18/09/2026, refeita só com addons de canal)
+#
+# Fonte: a categoria "live tv" do diretório stremio-addons.net (38 addons) —
+# a coleção oficial do Stremio (api.strem.io/addonscollection.json) não tem
+# NENHUM addon com catálogo de canal. Cada manifest foi baixado com curl; de
+# cada um, o primeiro catálogo tv/channel foi lido e o primeiro canal teve o
+# /stream pedido. Só entrou quem: (1) tem URL pública sem chave nem config no
+# caminho, (2) respondeu o manifesto, (3) devolveu canais no catálogo e (4)
+# devolveu ao menos um stream. Tudo medido no dia; addon de canal cai com
+# frequência, então esta lista envelhece — reteste antes de cada release.
+#
+# FICARAM DE FORA, e o motivo:
+#   FrostView TV      408 no manifesto no dia do teste (servidor fora).
+#   Minha TV          manifesto estourou 25 s.
+#   Akashi TV (Free)  /free/manifest.json devolve 404.
+#   USA TV            o host baby-beamup não resolve mais (DNS).
+#   Tvvio             funciona, mas o primeiro canal do catálogo é adulto —
+#                     não cabe numa lista que o app sugere sem aviso.
+#   Watchio.live      6.643 canais e ZERO stream no primeiro testado.
+#   All IPTV          84 catálogos: ocuparia sozinho as 24 fontes do guia
+#                     (G_MAX_FONTE) e deixaria os outros addons de fora.
+#   Nuvio Live Sports 16 catálogos, mesmo problema em menor escala.
+#   Nebula Sports / Sports Streams  catálogos type "sports"/"sport", que o
+#                     guia não reconhece como canal (ehCanal em guia.c).
+#   Nova Channels, NexoTV, M3U/EPG, Xtremio  exigem configuração; a URL
+#                     pública carrega config (ou chave) no caminho.
+#   BestCine, Primer Latino  403 (bloqueio de bot na frente do manifesto).
+#   StreamsPPV        429 no manifesto (limite de taxa).
+# O PRIMEIRO DA LISTA APARECE COMO "DESTAQUE" na tela. Fenix TV vai primeiro
+# porque foi o mais rápido a responder e o único que já vem classificado por
+# gênero (Abertos, Esportes...) — medido na C9 em 18/09/2026.
+# ---------------------------------------------------------------------------
+
+Fenix TV	https://fenixtv.fenixhub.online/manifest.json	Canais abertos e fechados do Brasil, com eventos ao vivo e jogos do dia	Brazilian free-to-air and pay TV channels, with live events and today's matches
+Meu Futebol	https://meufutebol.oneplayhd.com/manifest.json	Canais de esporte ao vivo em português: Premiere, SporTV, ESPN e mais	Live sports channels in Portuguese: Premiere, SporTV, ESPN and more
+Pluto TV	https://dev.nebulawp.org/stremio/pluto-tv-addon/manifest.json	Centenas de canais gratuitos e legais da Pluto TV (em inglês)	Hundreds of free, legal Pluto TV channels (in English)
+Canales Deportivos	https://thenasalies.onrender.com/manifest.json	Canais de esporte da América Latina, em espanhol: TyC Sports, ESPN e mais	Latin American sports channels, in Spanish: TyC Sports, ESPN and more
+Argentina TV	https://848b3516657c-argentinatv.baby-beamup.club/manifest.json	Canais abertos e de notícias da Argentina	Argentine free-to-air and news channels
+StremTV US	https://stremtv.vercel.app/manifest.json	Quase mil canais dos Estados Unidos, em inglês	Almost a thousand US channels, in English

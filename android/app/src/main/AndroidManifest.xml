@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Para a auto-atualizacao instalar o APK baixado (fase seguinte). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- Ditado dentro do app (SpeechRecognizer, src/sistexto.h): pedida em
+         tempo de execucao no primeiro uso do microfone. Negada, o app cai na
+         tela de voz do sistema, que grava por conta propria. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Android 11+: sem isto resolveActivity nao enxerga a tela de voz do
+         sistema e o ditado do Spotlight diria "sem reconhecedor" em toda TV. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+        <!-- e sem isto SpeechRecognizer.isRecognitionAvailable diz false -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <!-- #501: players de video instalados (lista do ajuste Player) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="video/*" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="video/*" />
+            <data android:scheme="http" />
+        </intent>
+    </queries>
+
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:glEsVersion="0x00020000" android:required="true" />
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:banner="@drawable/banner"
+        android:allowBackup="false"
+        android:largeHeap="true"
+        android:usesCleartextTraffic="true"
+        android:hasCode="true"
+        android:extractNativeLibs="true"
+        android:theme="@style/Tema.Nuvio">
+
+        <!-- configChanges cobre TODA mudanca que a Activity aguenta sem nascer de
+             novo. O nucleo C nao sobrevive a uma recriacao: medido no emulador
+             Android 11 com a 1.7.0, trocar font_scale com o app aberto deu
+             onDestroy, o main terminou, um segundo main subiu no mesmo processo
+             e o app sumiu. fontScale/colorMode/touchscreen/mcc/mnc faltavam na
+             lista; uma TV que muda o modo de cor ao abrir cai nisso (#223 e a
+             suspeita, sem prova). O segundo onCreate ainda e tratado em
+             NuvioActivity, como rede de seguranca. -->
+        <activity
+            android:name=".NuvioActivity"
+            android:exported="true"
+            android:screenOrientation="landscape"
+            android:launchMode="singleTask"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|smallestScreenSize|screenLayout|uiMode|navigation|density|locale|layoutDirection|fontScale|colorMode|touchscreen|mcc|mnc|fontWeightAdjustment|grammaticalGender"
+            android:resizeableActivity="false">
+            <!-- Links externos, docs/deeplink.md. O filtro fica na atividade
+                 (nao nos aliases de icone, que so existem para o launcher). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="nuvio-legacy" />
+                <data android:scheme="stremio" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="www.imdb.com" android:pathPrefix="/title/" />
+                <data android:host="m.imdb.com" />
+                <data android:host="imdb.com" />
+            </intent-filter>
+        </activity>
+
+        <!-- ICONE DO APP (apoiadores, src/iconeapp.h). A entrada do launcher NAO
+             e mais a NuvioActivity e sim um activity-alias por icone; so um fica
+             ligado de cada vez (NuvioActivity.trocarIcone; a troca e feita na
+             saida do app, porque desligar o alias em uso fecha a tarefa). O
+             nome do alias termina no id de src/iconeapp.c. O Original nasce
+             ligado; os outros nascem desligados.
+             EFEITO COLATERAL NA ATUALIZACAO: o componente do launcher passa de
+             .NuvioActivity para .Icone_original. Um atalho fixado na tela
+             inicial (launcher de celular) ou um favorito do Android TV que
+             guarde o componente pode sumir e precisar ser fixado de novo. -->
+        <activity-alias
+            android:name=".Icone_original"
+            android:targetActivity=".NuvioActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:banner="@drawable/banner">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".Icone_fenix"
+            android:targetActivity=".NuvioActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_fenix"
+            android:banner="@drawable/banner_fenix">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".Icone_nverde"
+            android:targetActivity=".NuvioActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_nverde"
+            android:banner="@drawable/banner_nverde">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".Icone_tvlaranja"
+            android:targetActivity=".NuvioActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_tvlaranja"
+            android:banner="@drawable/banner_tvlaranja">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".Icone_npixel"
+            android:targetActivity=".NuvioActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_npixel"
+            android:banner="@drawable/banner_npixel">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".Icone_tricolor"
+            android:targetActivity=".NuvioActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_tricolor"
+            android:banner="@drawable/banner_tricolor">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".Icone_arco"
+            android:targetActivity=".NuvioActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_arco"
+            android:banner="@drawable/banner_arco">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".Icone_tvviva"
+            android:targetActivity=".NuvioActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_tvviva"
+            android:banner="@drawable/banner_tvviva">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".Icone_cluberetro"
+            android:targetActivity=".NuvioActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_cluberetro"
+            android:banner="@drawable/banner_cluberetro">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <activity-alias
+            android:name=".Icone_arcaden"
+            android:targetActivity=".NuvioActivity"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_arcaden"
+            android:banner="@drawable/banner_arcaden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+
+
+        <!-- Entrega o APK baixado (dados/atualizacao) ao instalador do sistema. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.atualizacao"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/caminhos_atualizacao" />
+        </provider>
+    </application>
+</manifest>

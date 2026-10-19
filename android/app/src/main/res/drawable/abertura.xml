@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ABERTURA (#213): o fundo da janela ate o GLES desenhar o primeiro quadro.
+     NEUTRO (2.0 N1b): cor lisa, sem logo. O logo (Novo/Classico) e escolha do
+     usuario e so o app, ja rodando, sabe qual e; a abertura dentro do app
+     (src/abertura.c) comeca neste mesmo fundo liso e a marca entra por cima. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/nuvio_abertura" />
+</shape>

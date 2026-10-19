@@ -1,0 +1,84 @@
+{
+  "version": "1.7.4",
+  "publication": "v1.7.4",
+  "runtimeCommit": "1eee19b64329768891f6776c47bb87a714eb8b3b",
+  "physicalValidation": {
+    "android": "installed APK hash matched; cold launch and highlights card captured",
+    "lg": "pending",
+    "samsung": "pending"
+  },
+  "artifacts": [
+    {
+      "file": "Nuvio-1.7.4-NuvioTpk.tpk",
+      "bytes": 29063955,
+      "sha256": "1b7e800b9801f2e24b7ae7783e34a5360eb23bfee769cb6e52085b21cf3a8b3a",
+      "runtimeCommit": "1eee19b64329768891f6776c47bb87a714eb8b3b"
+    },
+    {
+      "file": "Nuvio-1.7.4-NuvioTpk40.tpk",
+      "bytes": 29068123,
+      "sha256": "157aded352e0e9ee6758e3e61550997d1452f35468fff2848256d7fe4446409d",
+      "runtimeCommit": "1eee19b64329768891f6776c47bb87a714eb8b3b"
+    },
+    {
+      "file": "Nuvio-1.7.4-NuvioTpk60.tpk",
+      "bytes": 29063008,
+      "sha256": "8ddee252c538aa9f8ecd288bc37b47bd7d812760aba8870cc22369133a06f8fb",
+      "runtimeCommit": "1eee19b64329768891f6776c47bb87a714eb8b3b"
+    },
+    {
+      "file": "Nuvio-1.7.4-NuvioTpk65.tpk",
+      "bytes": 29063228,
+      "sha256": "e1f8b80511ee4540a50834ddd2b7b288e39671936a0581e3543e9045086a6206",
+      "runtimeCommit": "1eee19b64329768891f6776c47bb87a714eb8b3b"
+    },
+    {
+      "file": "Nuvio-1.7.4-android.apk",
+      "bytes": 44802690,
+      "sha256": "6492dcd22ca03b7507ffd2d4e3c867d4daa3a5c4a412dc2a31e96042ae59a6d9",
+      "runtimeCommit": "1eee19b64329768891f6776c47bb87a714eb8b3b"
+    },
+    {
+      "file": "NuvioTV-1.7.4-tizen.wgt",
+      "bytes": 29205008,
+      "sha256": "5327a9abca5fc8f7ab96b599e156fab35d193a68e42a220b74b44710d9011595",
+      "runtimeCommit": "1eee19b64329768891f6776c47bb87a714eb8b3b"
+    },
+    {
+      "file": "libnuvio-1.7.4-tpk-arm.so",
+      "bytes": 9971840,
+      "sha256": "098928cfd203018194861620d432f74f125714adfd1fa34ea9e18a28020e0e8e",
+      "runtimeCommit": "1eee19b64329768891f6776c47bb87a714eb8b3b"
+    },
+    {
+      "file": "libnuvio-1.7.4-tpk40-arm.so",
+      "bytes": 9976024,
+      "sha256": "1480fa2b1316ab4ef9f44a6ec879d74cf964676e7d456062f67f26ba3647f4b7",
+      "runtimeCommit": "1eee19b64329768891f6776c47bb87a714eb8b3b"
+    },
+    {
+      "file": "repo.json",
+      "bytes": 1310,
+      "sha256": "0d2a8de1d1c647c454c308844fc6ecf6b56d931eb5ca72f48663149243d084f9",
+      "runtimeCommit": "1eee19b64329768891f6776c47bb87a714eb8b3b"
+    },
+    {
+      "file": "space.nuvio.native.legacy_1.7.4_arm-highcache.ipk",
+      "bytes": 53148000,
+      "sha256": "ffca4b931967e3b63419c8f04e35e03faec4bbd4787133e63d787e405e498508",
+      "runtimeCommit": "1eee19b64329768891f6776c47bb87a714eb8b3b"
+    },
+    {
+      "file": "space.nuvio.native.legacy_1.7.4_arm.ipk",
+      "bytes": 53149118,
+      "sha256": "04a3d6c7722eb35bfaed4be85db088a850faf0ae1fc6f32469e3da885e3a5664",
+      "runtimeCommit": "1eee19b64329768891f6776c47bb87a714eb8b3b"
+    },
+    {
+      "file": "webosbrew.manifest.json",
+      "bytes": 633,
+      "sha256": "bf1368f237413fd84e8ebe2373e15b23bad3ac97438ebe33b0e3e8f14ac72781",
+      "runtimeCommit": "1eee19b64329768891f6776c47bb87a714eb8b3b"
+    }
+  ]
+}

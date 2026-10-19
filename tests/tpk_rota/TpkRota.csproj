@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Teste de tests/tpk_rota.sh (#184): compila o Carga.cs dos hosts .tpk
+       num console do Mac para provar a rota dos DllImport. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Rota.cs" />
+    <Compile Include="../../tizen-tpk/Carga.cs" />
+  </ItemGroup>
+</Project>

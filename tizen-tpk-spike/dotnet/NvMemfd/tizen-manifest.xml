@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns="http://tizen.org/ns/packages" api-version="4" package="NuvioTV002.NvMemfd" version="0.1.0">
+  <profile name="tv" />
+  <ui-application appid="NuvioTV002.NvMemfd"
+                   exec="NvMemfd.dll"
+                   type="dotnet"
+                   multiple="false"
+                   taskmanage="true"
+                   nodisplay="false"
+                   launch_mode="single">
+    <label>Nuvio memfd probe</label>
+    <icon>NvMemfd.png</icon>
+  </ui-application>
+  <privileges>
+    <!-- So para o Apps2Samsung reassinar como Partner, igual ao NuvioTpk40.
+         O spike nao usa DRM nem rede. -->
+    <privilege>http://developer.samsung.com/privilege/drminfo</privilege>
+  </privileges>
+</manifest>

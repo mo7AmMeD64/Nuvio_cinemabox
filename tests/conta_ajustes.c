@@ -1,0 +1,275 @@
+// O blob da conta chega nos ajustes com o SENTIDO certo?
+//
+// Este e o teste que importa mais nesta area, porque o defeito aqui e MUDO:
+// um mapeamento invertido nao da erro, nao trava, nao aparece no log — a
+// pessoa so acha que a TV "veio com outras opcoes". Cada caso abaixo foi
+// conferido contra o valor literal que o app web grava.
+//
+// Dois casos sao propositalmente traicoeiros:
+//   - `true` do web vira INDICE 0 ("Ligado"), nao 1;
+//   - `collapseSidebar: true` vira "Recolhida", que tambem e o indice 0.
+#include <stdio.h>
+#include "nvtmp.h"
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>   // mkdtemp
+#include "ajustes.h"
+
+static int falhas;
+static void confere(const char *o_que, int obtido, int esperado) {
+  int ok = obtido == esperado;
+  printf("  %-46s %s (obtido %d, esperado %d)\n", o_que, ok ? "ok    " : "FALHOU", obtido, esperado);
+  if (!ok) falhas++;
+}
+
+int main(void) {
+  // Blob com TODO valor no oposto do padrao de fabrica, para que qualquer
+  // opcao que nao seja aplicada apareca como falha em vez de coincidir.
+  // FORMATO REAL, medido contra a conta na TV: version + features, chave em
+  // snake_case, valor embrulhado em {"type","value"}. O teste antigo usava um
+  // mapa plano de camelCase — passava, e o app nao aplicava NADA no aparelho.
+  // Teste que nao usa o formato do servidor nao prova nada.
+  static const char *BLOB =
+    "{\"version\":1,\"features\":{\"layout_settings\":{"
+    "\"modern_landscape_posters_enabled\":{\"type\":\"boolean\",\"value\":true},"
+    "\"modern_hero_full_screen_backdrop_enabled\":{\"type\":\"boolean\",\"value\":false},"
+    "\"collapse_sidebar\":{\"type\":\"boolean\",\"value\":true},"
+    "\"modern_sidebar\":{\"type\":\"boolean\",\"value\":false},"
+    "\"hero_section_enabled\":{\"type\":\"boolean\",\"value\":false},"
+    "\"discover_location\":{\"type\":\"string\",\"value\":\"IN_SIDEBAR\"},"
+    "\"poster_labels_enabled\":{\"type\":\"boolean\",\"value\":false},"
+    "\"hide_unreleased_content\":{\"type\":\"boolean\",\"value\":true},"
+    "\"home_imdb_ratings_visibility\":{\"type\":\"string\",\"value\":\"HIDE_ALL\"},"
+    "\"continue_watching_enabled\":{\"type\":\"boolean\",\"value\":false},"
+    "\"continue_watching_card_style\":{\"type\":\"string\",\"value\":\"POSTER\"},"
+    "\"continue_watching_sort_mode\":{\"type\":\"string\",\"value\":\"streaming_style\"},"
+    "\"blur_unwatched_episodes\":{\"type\":\"boolean\",\"value\":true},"
+    "\"detail_page_trailer_button_enabled\":{\"type\":\"boolean\",\"value\":false},"
+    "\"focused_poster_backdrop_expand_delay_seconds\":{\"type\":\"int\",\"value\":4},"
+    "\"card_depth_enabled\":{\"type\":\"boolean\",\"value\":false},"
+    "\"card_depth_edge_strength\":{\"type\":\"int\",\"value\":80},"
+    "\"poster_card_width_dp\":{\"type\":\"int\",\"value\":150},"
+    "\"poster_card_corner_radius_dp\":{\"type\":\"int\",\"value\":12},"
+    "\"chave_que_este_app_nao_conhece\":{\"type\":\"string\",\"value\":\"x\"}"
+    "}}}";
+
+  printf("aplicando blob da conta...\n");
+  ajustes_aplicar_blob(BLOB);
+
+  printf("\nbooleanos (true do web = LIGADO):\n");
+  confere("modernLandscapePostersEnabled:true -> ligado", ajustes_posteres_deitados(), 1);
+  confere("modernHeroFullScreenBackdropEnabled:false",    ajustes_hero_cheio(), 0);
+  confere("modernSidebar:false -> desligado",             ajustes_rail_moderna(), 0);
+  confere("heroSectionEnabled:false -> desligado",        ajustes_hero_ligado(), 0);
+  confere("posterLabelsEnabled:false",                    ajustes_rotulos_poster(), 0);
+  confere("hideUnreleasedContent:true",                   ajustes_ocultar_nao_lancados(), 1);
+  confere("continueWatchingEnabled:false",                ajustes_cw_ligado(), 0);
+  confere("blurUnwatchedEpisodes:true",                   ajustes_desfocar_nao_assistidos(), 1);
+  confere("detailPageTrailerButtonEnabled:false",         ajustes_botao_trailer(), 0);
+  confere("cardDepthEnabled:false",                       ajustes_profundidade(), 0);
+
+  printf("\ncollapseSidebar:true = \"Recolhida\" (indice 0):\n");
+  confere("rail recolhida",                               ajustes_rail_recolhida(), 1);
+
+  printf("\nenums de texto:\n");
+  confere("discoverLocation \"in_sidebar\" -> 1",         ajustes_local_descobrir(), 1);
+  confere("homeImdbRatingsVisibility \"HIDE_ALL\"",       ajustes_notas_home(), 0);
+  confere("continueWatchingCardStyle \"poster\" -> 2",    ajustes_cw_estilo(), 2);
+  confere("continueWatchingSortMode \"streaming_style\"", ajustes_cw_ordem(), 1);
+
+  printf("\nnumeros:\n");
+  confere("focusedPosterBackdropExpandDelaySeconds 4",
+          (int)(ajustes_expandir_poster_atraso() + 0.5f), 4);
+  confere("cardDepthEdgeStrength 80 -> 0.80",
+          (int)(ajustes_profundidade_borda() * 100.0f + 0.5f), 80);
+  confere("posterCardWidthDp 150",                        ajustes_largura_poster_dp(), 150);
+  confere("posterCardCornerRadiusDp 12",                  ajustes_raio_poster_dp(), 12);
+
+  // Segunda rodada: valor de texto que este app NAO conhece (versao nova do
+  // web, opcao nova). A opcao tem de FICAR COMO ESTA. Cair num padrao aqui
+  // inventaria uma preferencia que a pessoa nunca marcou — e ela veria a TV
+  // mudar sozinha sem ter mexido em nada.
+  printf("\nvalor desconhecido nao inventa preferencia:\n");
+  { int antesDescobrir = ajustes_local_descobrir();
+    int antesEstilo    = ajustes_cw_estilo();
+    ajustes_aplicar_blob(
+      "{\"features\":{\"layout_settings\":{"
+      "\"discover_location\":{\"type\":\"string\",\"value\":\"modo_que_nao_existe\"},"
+      "\"continue_watching_card_style\":{\"type\":\"string\",\"value\":\"3d\"}}}}");
+    confere("discoverLocation invalido -> mantido", ajustes_local_descobrir(), antesDescobrir);
+    confere("cardStyle invalido -> mantido",        ajustes_cw_estilo(), antesEstilo); }
+
+  // E chave ausente tambem nao mexe: um blob de uma opcao so nao pode zerar as
+  // outras 39.
+  printf("\nchave ausente nao mexe no resto:\n");
+  { int antes = ajustes_largura_poster_dp();
+    ajustes_aplicar_blob("{\"features\":{\"layout_settings\":{"
+                         "\"hero_section_enabled\":{\"type\":\"boolean\",\"value\":true}}}}");
+    confere("largura preservada por blob parcial", ajustes_largura_poster_dp(), antes);
+    confere("a chave que veio foi aplicada",       ajustes_hero_ligado(), 1); }
+
+  // --- O CAMINHO DE VOLTA (#85) ---------------------------------------------
+  //
+  // O defeito que estes casos cercam e o pior desta area: um push de ajustes
+  // mal formado nao da erro, ele APAGA da conta o que so o app web usa. Cada
+  // caso abaixo e uma das travas de ajustes_mesclar_blob.
+  printf("\ncostura de subida (#85):\n");
+  { static const char *BASE =
+      "{\"version\":1,\"features\":{\"layout_settings\":{"
+      "\"hero_section_enabled\":{\"type\":\"boolean\",\"value\":false},"
+      "\"poster_card_width_dp\":{\"type\":\"int\",\"value\":150},"
+      "\"continue_watching_card_style\":{\"type\":\"string\",\"value\":\"POSTER\"},"
+      "\"chave_que_este_app_nao_conhece\":{\"type\":\"string\",\"value\":\"x\"}"
+      "},\"outra_feature\":{\"coisa_do_web\":{\"type\":\"int\",\"value\":7}}}}";
+    char *saida = NULL;
+    int n;
+    // Estado local diferente da base nas tres chaves conhecidas.
+    ajustes_aplicar_blob("{\"features\":{\"layout_settings\":{"
+      "\"hero_section_enabled\":{\"type\":\"boolean\",\"value\":true},"
+      "\"poster_card_width_dp\":{\"type\":\"int\",\"value\":132},"
+      "\"continue_watching_card_style\":{\"type\":\"string\",\"value\":\"WIDE\"}}}}");
+    n = ajustes_mesclar_blob(BASE, &saida);
+    confere("three web keys plus portable section", n, 4);
+    if (saida) {
+      confere("booleano local sobe",
+              strstr(saida, "\"hero_section_enabled\":{\"type\":\"boolean\",\"value\":true}") != NULL, 1);
+      confere("numero local sobe",
+              strstr(saida, "\"poster_card_width_dp\":{\"type\":\"int\",\"value\":132}") != NULL, 1);
+      // CAIXA DO SERVIDOR: a base guardava "POSTER" em maiuscula, entao o valor
+      // novo tambem sai em maiuscula — o web guarda estes enums assim.
+      confere("enum sobe na caixa que a conta usava",
+              strstr(saida, "\"value\":\"WIDE\"") != NULL, 1);
+      // O QUE ESTE APP NAO CONHECE FICA INTACTO. E a trava que impede a TV de
+      // apagar da conta as preferencias que so o app web tem.
+      confere("chave desconhecida preservada",
+              strstr(saida, "\"chave_que_este_app_nao_conhece\":{\"type\":\"string\",\"value\":\"x\"}") != NULL, 1);
+      confere("feature inteira desconhecida preservada",
+              strstr(saida, "\"coisa_do_web\":{\"type\":\"int\",\"value\":7}") != NULL, 1);
+      // E NADA E INVENTADO: chave que a conta nao tem nao aparece no blob.
+      confere("chave ausente na conta nao e criada",
+              strstr(saida, "card_depth_enabled") == NULL, 1);
+      free(saida);
+    } else falhas++;
+
+    // Segunda costura, agora com o local IGUAL a base: nada a mandar. Serve de
+    // freio no sync — um ciclo sem diferenca real nao gera push.
+    saida = NULL;
+    n = ajustes_mesclar_blob(
+      "{\"features\":{\"layout_settings\":{"
+      "\"hero_section_enabled\":{\"type\":\"boolean\",\"value\":true}}}}", &saida);
+    confere("portable section seeded", n, 1);
+    char *same = NULL;
+    confere("same complete snapshot needs no push", ajustes_mesclar_blob(saida, &same), 0);
+    confere("no duplicate output", same == NULL, 1);
+    free(saida); saida = NULL;
+
+    // Blob vazio/ausente: sem base nao ha costura (a trava 1 do empurrarAjustes).
+    confere("sem base -> 0", ajustes_mesclar_blob(NULL, &saida), 0);
+    confere("base vazia -> 0", ajustes_mesclar_blob("", &saida), 0);
+
+    // AJUSTE DE APARELHO NAO SOBE, nem que a conta tenha a chave: a TV da sala
+    // e a do quarto nao tem a mesma RAM nem a mesma tela.
+    saida = NULL;
+    n = ajustes_mesclar_blob(
+      "{\"features\":{\"layout_settings\":{"
+      "\"resolucaoUi\":{\"type\":\"int\",\"value\":0},"
+      "\"texturas_mb\":{\"type\":\"int\",\"value\":0}}}}", &saida);
+    confere("only portable section added", n, 1);
+    confere("device value untouched", saida && strstr(saida, "\"resolucaoUi\":{\"type\":\"int\",\"value\":0}") != NULL, 1);
+    free(saida); }
+
+  // --- TRAILER DO CARTAZ EM FOCO: TRES MODOS AQUI, UM BOOLEANO NA CONTA -----
+  //
+  // O arquivo guarda o modo em "trailerCartazModo"; a chave velha (V_LIGA:
+  // 0 = Ligado) migra para o que a pessoa via. Na conta continua o
+  // focused_poster_backdrop_trailer_enabled do web: true = algum modo.
+  printf("\ntrailer do cartaz em foco (tres modos):\n");
+  { static const struct { const char *arq; int esperado; const char *o_que; } M[] = {
+      { "focusedPosterBackdropTrailerEnabled 0\nmodernLandscapePostersEnabled 0\n", AJ_TRAILER_CARTAZ_CHEIA,
+        "ligado + cartaz deitado -> Tela cheia" },
+      { "focusedPosterBackdropTrailerEnabled 0\nfocusedPosterBackdropExpandEnabled 0\nmodernLandscapePostersEnabled 1\n",
+        AJ_TRAILER_CARTAZ_CHEIA, "ligado + expandir -> Tela cheia" },
+      { "modernLandscapePostersEnabled 1\nfocusedPosterBackdropExpandEnabled 1\nfocusedPosterBackdropTrailerEnabled 0\n",
+        AJ_TRAILER_CARTAZ_DESLIGADO, "ligado sem dependencia -> Desligado (nao tocava)" },
+      { "focusedPosterBackdropTrailerEnabled 1\n", AJ_TRAILER_CARTAZ_DESLIGADO, "desligado -> Desligado" },
+      { "trailerCartazModo 2\nfocusedPosterBackdropTrailerEnabled 1\n", AJ_TRAILER_CARTAZ_CARD, "chave nova vence a velha" },
+    };
+    static const char *CONTA_LIGADO =
+      "{\"features\":{\"layout_settings\":{"
+      "\"focused_poster_backdrop_trailer_enabled\":{\"type\":\"boolean\",\"value\":true}}}}";
+    static const char *CONTA_DESLIGADO =
+      "{\"features\":{\"layout_settings\":{"
+      "\"focused_poster_backdrop_trailer_enabled\":{\"type\":\"boolean\",\"value\":false}}}}";
+    char dir[NVT_MAX], cam[200], *saida = NULL; nvt_set(dir, sizeof dir, "/nuvio-conta-trailer.XXXXXX");
+    unsigned q;
+    FILE *f;
+    if (!mkdtemp(dir)) { falhas++; goto fim; }
+    snprintf(cam, sizeof cam, "%s/ajustes.txt", dir);
+    for (q = 0; q < sizeof M / sizeof *M; q++) {
+      f = fopen(cam, "w"); fputs(M[q].arq, f); fclose(f);
+      ajustes_dir(dir);
+      confere(M[q].o_que, ajustes_trailer_cartaz(), M[q].esperado);
+    }
+    // O ultimo caso deixou No card: true da conta mantem o modo; sobe true.
+    ajustes_aplicar_blob(CONTA_LIGADO);
+    confere("conta true mantem No card", ajustes_trailer_cartaz(), AJ_TRAILER_CARTAZ_CARD);
+    confere("card mode plus portable section", ajustes_mesclar_blob(CONTA_DESLIGADO, &saida), 2);
+    confere("  e o valor e true", saida && strstr(saida, "\"value\":true") != NULL, 1);
+    free(saida); saida = NULL;
+    ajustes_aplicar_blob(CONTA_DESLIGADO);
+    confere("conta false -> Desligado", ajustes_trailer_cartaz(), AJ_TRAILER_CARTAZ_DESLIGADO);
+    ajustes_aplicar_blob(CONTA_LIGADO);
+    confere("conta true sobre Desligado -> Tela cheia", ajustes_trailer_cartaz(), AJ_TRAILER_CARTAZ_CHEIA);
+    confere("same web trailer seeds portable section", ajustes_mesclar_blob(CONTA_LIGADO, &saida), 1);
+    free(saida);
+    unlink(cam); rmdir(dir); }
+
+  // --- TEMA DINAMICO (cor viva) ---------------------------------------------
+  //
+  // "Dinâmica" e "Dinâmica estilizada" so existem nesta TV. As duas travas:
+  // a conta nao desfaz a escolha local (o blob sempre traz um dos doze temas
+  // do web), e a subida nao toca selected_theme — nem com um valor que o web
+  // nao conhece, nem com o padrao, que apagaria o tema escolhido la.
+  printf("\ntema dinamico e local:\n");
+  { char dir[NVT_MAX], cam[200]; nvt_set(dir, sizeof dir, "/nuvio-conta-tema.XXXXXX");
+    static const char *CONTA_JADE =
+      "{\"version\":1,\"features\":{\"theme_settings\":{"
+      "\"selected_theme\":{\"type\":\"string\",\"value\":\"JADE\"}}}}";
+    char *saida = NULL;
+    FILE *f;
+    int n;
+    if (!mkdtemp(dir)) { falhas++; goto fim; }
+    snprintf(cam, sizeof cam, "%s/ajustes.txt", dir);
+    f = fopen(cam, "w");
+    fputs("selected_theme 12\n", f); fclose(f);        // Da arte (13, Dinâmica estilizada, saiu em b6e14d69)
+    ajustes_dir(dir);
+    confere("local = Da arte", ajustes_cor_viva(), 1);   // CORVIVA_SIMPLES
+    ajustes_aplicar_blob(CONTA_JADE);
+    confere("JADE da conta nao desfaz o dinamico", ajustes_cor_viva(), 1);
+    n = ajustes_mesclar_blob(CONTA_JADE, &saida);
+    confere("dynamic theme stored in C section", n, 1);
+    confere("web JADE preserved", saida && strstr(saida, "\"value\":\"JADE\"") != NULL, 1);
+    free(saida); saida = NULL;
+    // Tema FIXO aqui: a conta volta a mandar, e a subida volta a valer.
+    f = fopen(cam, "w");
+    fputs("selected_theme 2\n", f); fclose(f);         // Oceano
+    ajustes_dir(dir);
+    confere("local = tema fixo", ajustes_cor_viva(), 0);
+    ajustes_aplicar_blob(CONTA_JADE);
+    { float r, g, b; ajustes_acento(&r, &g, &b);
+      confere("com tema fixo, o JADE da conta e aplicado",
+              (int)(r * 255 + .5f) == 0x83 && (int)(g * 255 + .5f) == 0xe5   /* JADE 0x83e5bc since b6e14d69 */, 1); }
+    n = ajustes_mesclar_blob(
+      "{\"features\":{\"theme_settings\":{"
+      "\"selected_theme\":{\"type\":\"string\",\"value\":\"OCEAN\"}}}}", &saida);
+    confere("fixed web theme plus portable section", n, 2);
+    confere("...como JADE", saida && strstr(saida, "\"value\":\"JADE\"") != NULL, 1);
+    free(saida);
+    snprintf(cam, sizeof cam, "rm -rf '%s'", dir);
+    if (system(cam)) {}
+  }
+fim:
+
+  printf("\n%s\n", falhas ? "TEM FALHA" : "TODOS OS AJUSTES CHEGARAM CERTOS");
+  return falhas ? 1 : 0;
+}

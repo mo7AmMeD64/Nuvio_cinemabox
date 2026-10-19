@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider da auto-atualizacao: so <filesDir>/dados/atualizacao/ e exposto
+     ao instalador de pacotes, nada mais do app. -->
+<paths>
+    <files-path name="atualizacao" path="dados/atualizacao/" />
+</paths>

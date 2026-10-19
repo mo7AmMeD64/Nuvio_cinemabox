@@ -1,0 +1,15 @@
+#!/bin/bash
+export TMPDIR="${TMPDIR:-/tmp}"
+TMPDIR="${TMPDIR%/}"
+set -euo pipefail
+cd "$(dirname "$0")/.."
+binary=$(mktemp ${TMPDIR:-/tmp}/nuvio-seekr-estados.XXXXXX)
+trap 'rm -f "$binary"' EXIT
+case "$(uname -s)" in
+  Darwin) stripflag=-Wl,-dead_strip ;;
+  *) stripflag=-Wl,--gc-sections ;;
+esac
+cc tests/seekr_estados.c -Isrc -I/opt/homebrew/include -I/opt/homebrew/include/SDL2 \
+  -O1 -g -ffunction-sections -fdata-sections "$stripflag" \
+  -Wno-deprecated-declarations -Wno-macro-redefined -o "$binary"
+"$binary"

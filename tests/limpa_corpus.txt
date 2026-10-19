@@ -1,0 +1,128 @@
+# Corpus de formatadores de addon (#144). Tres linhas por caso, separadas por
+# linha "--": entrada, saida em UMA linha, saida com \n mantido.
+# Escapes: \n \r \t e \xHH (bytes crus, para UTF-8 invalido).
+
+⚡ 🎞️ 1080p 📦 4.2 GB
+1080p · 4.2 GB
+1080p · 4.2 GB
+--
+🎬 The Matrix (1999) 1080p BluRay\n💾 8.5 GB 🌐 🇬🇧 🇧🇷\n🔊 DDP5.1 Atmos
+The Matrix (1999) 1080p BluRay · 8.5 GB · EN PT · DDP5.1 Atmos
+The Matrix (1999) 1080p BluRay\n8.5 GB · EN PT\nDDP5.1 Atmos
+--
+✅ Cached ❌ Uncached
+✓ Cached × Uncached
+✓ Cached × Uncached
+--
+⭐ Dual Audio ☁️ RD+
+★ Dual Audio · RD+
+★ Dual Audio · RD+
+--
+🧲 Torrentio 👤 154 💾 2.31 GB ⚙️ YTS
+Torrentio · 154 · 2.31 GB · YTS
+Torrentio · 154 · 2.31 GB · YTS
+--
+1080p │ HEVC ┃ 10bit ▸ DV
+1080p · HEVC · 10bit · DV
+1080p · HEVC · 10bit · DV
+--
+◆ WEB-DL ◇ AVC ● Netflix
+WEB-DL · AVC · Netflix
+WEB-DL · AVC · Netflix
+--
+4K | HDR · │ Atmos
+4K | HDR · Atmos
+4K | HDR · Atmos
+--
+S₀₃ᴇ₁₄ RᴇLᴇAꜱᴇ
+S03E14 RELEASE
+S03E14 RELEASE
+--
+◆ Mushoku Tensei S₀₃ ◈ 1.77 GB
+Mushoku Tensei S03 · 1.77 GB
+Mushoku Tensei S03 · 1.77 GB
+--
+𝗕𝗹𝘂𝗥𝗮𝘆 𝐇𝐃𝐑 𝗗𝗩
+BluRay HDR DV
+BluRay HDR DV
+--
+𝘽𝙡𝙪𝙍𝙖𝙮 𝟮𝟭𝟲𝟬p
+BluRay 2160p
+BluRay 2160p
+--
+ＨＤＲ ４Ｋ
+HDR 4K
+HDR 4K
+--
+ᴴᴰ ʰᵈ
+HD hd
+HD hd
+--
+👨‍👩‍👧 Family 720p
+Family 720p
+Family 720p
+--
+👍🏽 Good 1️⃣ 720p
+Good 1 720p
+Good 1 720p
+--
+🅰️ 🅱 1080p
+A B 1080p
+A B 1080p
+--
+🇯🇵 Japão 🇩🇪 🇧🇩
+JA Japão DE BD
+JA Japão DE BD
+--
+Audio: 🇬🇧 ✓ Subs: 🇪🇸
+Audio: EN ✓ Subs: ES
+Audio: EN ✓ Subs: ES
+--
+  1080p\t\t HEVC \r\n\n\n  x265  
+1080p HEVC · x265
+1080p HEVC\nx265
+--
+1080p \xef\xbf\xbd BluRay \xff\xfe ok\xe2\x80
+1080p BluRay ok
+1080p BluRay ok
+--
+1080p​​HEVC﻿
+1080pHEVC
+1080pHEVC
+--
+デッドプール 🎞 1080p
+デッドプール · 1080p
+デッドプール · 1080p
+--
+Оригинал ⚡ Dub
+Оригинал · Dub
+Оригинал · Dub
+--
+A Fundação – “T2” … • 5€
+A Fundação – “T2” … • 5€
+A Fundação – “T2” … • 5€
+--
+Torrentio\n⚡ 🎞️
+Torrentio
+Torrentio
+--
+🎞️ 📦 💾
+
+
+--
+MediaFusion 📂 Movie.2024.2160p.WEB-DL.DV.HDR.x265-GRP 💾 12.4 GB 🌱 88
+MediaFusion · Movie.2024.2160p.WEB-DL.DV.HDR.x265-GRP · 12.4 GB · 88
+MediaFusion · Movie.2024.2160p.WEB-DL.DV.HDR.x265-GRP · 12.4 GB · 88
+--
+[RD+] Torrentio\n4K HDR ⚡
+[RD+] Torrentio · 4K HDR
+[RD+] Torrentio\n4K HDR
+--
+Audio 🔊: DDP 🎧 Atmos (🌐)
+Audio: DDP · Atmos
+Audio: DDP · Atmos
+--
+➜ Português ➤ Legendado ⬇ 1080p ⏳ uncached
+→ Português → Legendado · 1080p · uncached
+→ Português → Legendado · 1080p · uncached
+--

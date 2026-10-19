@@ -1,0 +1,55 @@
+NUVIO - THIRD-PARTY NOTICES
+
+UI renderer (all platforms): Snapdragon Game Super Resolution 1 (SGSR).
+Copyright (c) 2025, Qualcomm Innovation Center, Inc. All rights reserved.
+BSD-3-Clause. GLES2 port; original alpha preserved.
+https://github.com/SnapdragonStudios/snapdragon-gsr
+Full text: sgsr-LICENSE.txt.
+
+P2P ENGINE
+
+Packages that carry the built-in P2P engine (Android, LG webOS, Samsung
+Tizen 6+ .tpk) include the software below. The licence text of each item is in
+this folder. The Samsung Tizen 4/5 .tpk and the .wgt do not carry the engine.
+
+1. Nuvio Engine 0.1.3 (commit 02938d7)
+   https://github.com/NuvioMedia/nuvio-engine
+   GPL-3.0-or-later. Full text: nuvio-engine-LICENSE.txt.
+   Nuvio itself is GPL-3.0 (LICENSE at the root of the Nuvio source). The
+   complete corresponding source of the engine is available at the address
+   above, at that commit, and of Nuvio at https://github.com/iqui27/nuvio-native-legacy
+   (see the repository's LICENSE).
+
+2. libtorrent-rasterbar 2.0.12 (commit 740a0b9aeabe00e762cc0efe4a0f27593db2550b)
+   https://github.com/arvidn/libtorrent
+   Copyright (c) 2003-2020, Arvid Norberg. BSD 3-Clause; the file also carries
+   the notices of the code libtorrent bundles (puff.c, by Mark Adler, and
+   others). Full text: libtorrent-LICENSE.txt.
+   try_signal (https://github.com/arvidn/try_signal), used by libtorrent:
+   try_signal-LICENSE.txt.
+   Nuvio's engine build carries source patches (routing-table message bounds
+   checking, loading the application's TLS trust bundle). They stay under
+   the same BSD 3-Clause licence.
+
+3. Boost 1.86.0 (headers only)
+   https://www.boost.org/
+   Boost Software License 1.0. Full text: boost-LICENSE_1_0.txt.
+
+4. OpenSSL, statically linked
+   https://www.openssl.org/
+   Apache License 2.0 (OpenSSL 3.x). Full text: openssl-LICENSE.txt.
+   Versions: 3.5.7 in the Android build; 3.4.1 in the LG webOS and Samsung
+   builds (from the webOS cross-toolchain sysroot).
+
+5. C++ runtime, statically linked
+   - LG webOS and Samsung Tizen 6+: libstdc++, libgcc and libatomic from GCC
+     14.2. GNU GPL version 3 with the GCC Runtime Library Exception 3.1
+     (https://www.gnu.org/licenses/gcc-exception-3.1.html), which lets the
+     combined program be distributed under its own licence.
+   - Android: libc++ (LLVM) from the Android NDK 27.2. Apache License 2.0 with
+     LLVM Exceptions (https://llvm.org/LICENSE.txt).
+
+The P2P feature is off by default. When on and no server address is set, the
+device downloads the torrent you choose and shares pieces with other people
+while it plays; everything is deleted when the player closes. Downloading or
+sharing content without permission may be illegal in your country.

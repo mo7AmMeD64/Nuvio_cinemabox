@@ -1,0 +1,63 @@
+// Escolha de perfil — a primeira tela de quem tem conta.
+//
+// QUANDO ELA APARECE esta escrito em perfis_precisa_escolher() (perfis.h), que
+// e onde a regra pode ser testada. Em uma linha: uma vez por sessao, so quando
+// ha mais de um perfil (ou um so, travado por PIN), e nunca para quem nao tem
+// conta. Ela nao aparecia a cada arranque; aparecia uma vez por INSTALACAO, e
+// numa TV de sala isso faz o app herdar em silencio o perfil de quem desligou o
+// aparelho ontem.
+//
+// ELA NAO ATRASA O ARRANQUE. A home ja foi montada do cache dentro de
+// app_iniciar (o marco "catalogo do cache na tela", 844 ms medidos na TV) antes
+// de esta tela existir, e app.c continua chamando home_atualizar por tras dela
+// — quando a pessoa escolhe, a home ja esta pronta. A lista de perfis tambem
+// vem de um cache em disco, entao a tela desenha no primeiro quadro em vez de
+// esperar a rede.
+//
+// O PIN e verificado NO SERVIDOR (verify_profile_pin). Guardar o PIN aqui para
+// comparar localmente seria guardar o segredo no aparelho — e um perfil
+// travado existe justamente para o aparelho nao poder abri-lo sozinho. O PIN
+// digitado nao vai para log nenhum, e nao pode passar a ir.
+#ifndef NV_PERFILSEL_H
+#define NV_PERFILSEL_H
+#include <SDL2/SDL.h>
+
+void perfilsel_iniciar(void);
+void perfilsel_evento(const SDL_Event *e);
+void perfilsel_atualizar(float dt, Uint32 agora);
+void perfilsel_desenhar(Uint32 agora);
+int  perfilsel_concluido(void);
+// Voltar mantendo o perfil ja gravado encerra a pergunta desta sessao. A
+// regra de poder dispensar continua em perfis_pode_dispensar(); este helper
+// apenas publica a mesma conclusao que uma escolha explicita publica.
+void perfilsel_continuar_ativo(void);
+int  perfilsel_quer_sair(void);
+int  perfilsel_pediu_repetir(void);
+// TROCA DE PERFIL: com `ligado`, a tela continua de pe depois da escolha, com
+// um indicador girando no cartao escolhido e as teclas ignoradas, enquanto
+// app.c prepara a home do perfil novo. perfilsel_iniciar desliga.
+void perfilsel_preparar(int ligado, Uint32 agora);
+int  perfilsel_preparando(void);
+
+#ifdef NV_PERFILSEL_TEST
+typedef struct {
+  float foco[8];
+  float pin;
+  float luz[6];
+  float luz_alvo[6];
+  float fade[9];
+  float mural_tempo;
+  float burst_tempo;
+  int mural_n;
+  int particulas;
+  int burst;
+  int burst_desenhado;
+  float amb_t;        /* cross-fade do ambiente do perfil, 0..1 */
+  int amb_atual, amb_ant;
+  int amb_fonte;      /* focused profile's layer: 0 none (light), 1 art, 2 avatar (#295) */
+  int cont_tem[8];    /* cartao "continuar" montado por perfil */
+} PerfilSelTesteEstado;
+void perfilsel_teste_estado(PerfilSelTesteEstado *estado);
+#endif
+
+#endif

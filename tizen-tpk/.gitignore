@@ -1,0 +1,6 @@
+# Tudo abaixo e gerado por tools/tpk.sh a cada build.
+*/bin/
+*/obj/
+*/lib/
+*/res/
+*/shared/

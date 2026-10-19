@@ -1,0 +1,9 @@
+out/
+bin/
+obj/
+dotnet/*/lib/
+native/libnvspike.so
+native/libnvprobe.so
+native/spikebin
+dotnet/Segredos.g.cs
+dotnet/*/shared/

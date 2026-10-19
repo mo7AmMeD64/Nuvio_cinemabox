@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark"><title>Nuvio — Ajustes, protótipo de UX</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="labbar"><span><strong>Nuvio</strong><span class="lab-divider"></span>Estudo de ajustes</span><span class="lab-disclosure">Demonstração local · sem conexão com a conta</span><button id="reset-demo" title="Reiniciar os valores desta demonstração">Reiniciar demonstração</button></div>
+<main id="tv" class="tv">
+<header class="masthead"><div class="masthead-title"><svg class="brand" viewBox="0 0 48 48" aria-hidden="true"><path d="M9 34V14a5 5 0 0 1 9-3l14 21V14a5 5 0 0 1 10 0v20a5 5 0 0 1-9 3L19 16v18a5 5 0 0 1-10 0Z" fill="currentColor"/></svg><div><h1>Ajustes</h1><p>Do seu jeito, em cada detalhe.</p></div></div><div class="profile"><span class="avatar">N</span><div>Perfil de exemplo<small>Preferências da demonstração</small></div></div></header>
+<div class="settings-grid"><nav id="navigation" class="navigation" aria-label="Seções de ajustes"></nav><section id="content" class="content" aria-label="Opções"></section><aside id="inspector" class="inspector" aria-label="Explicação do ajuste"></aside></div>
+<footer class="tv-footer"><div><span><kbd>↑</kbd><kbd>↓</kbd> Navegar</span><span><kbd>OK</kbd> Escolher</span><span><kbd>Esc</kbd> Voltar</span></div><span class="footer-note">Também funciona com clique</span></footer>
+</main>
+<div class="study-bottom"><p><strong>Experimente:</strong> desligar só o trailer do cartaz, trocar o áudio ou testar uma TV com menos efeitos.</p><button id="help-button">Como usar o controle</button></div>
+<div id="overlay-root"></div><div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script type="module" src="app.js"></script>
+</body></html>

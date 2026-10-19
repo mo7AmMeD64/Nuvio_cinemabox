@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+<!-- SINO DE TRACO do chip de lembrete da Agenda: o desenho do mockup aprovado
+     (design/glass-ilha, tela 8), no corpo dos icones de traco 1,9 desta pasta.
+     O sino.svg cheio continua sendo o do hero e do detalhe; num chip de 44 px
+     o cheio pesava mais que o texto ao lado. Rasterizado como em
+     tools/icones-lucide.sh: 128x128, branco, forma no alfa. -->
+<path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z"/>
+<path d="M10 21h4"/>
+</svg>
