@@ -39,6 +39,8 @@
 #include "idiomacod.h"
 #include "layout.h"
 #include "focoprof.h"
+#include "cinemabox.h"
+#include "vertudo.h"
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -62,6 +64,11 @@ static float explorarDireita(void) {
 #define EX_CL_H         250.0f
 #define EX_CL_GAP       18.0f
 #define EX_CL_TOPO      212.0f
+
+// Grade de secoes do CinemaBox (a entrada do Explorar).
+#define EX_SEC_COLS     4
+#define EX_SEC_H        210.0f
+#define EX_SEC_GAP      18.0f
 
 // Clima aberto: duas fileiras de cartazes.
 #define EX_CA_W         200.0f
@@ -96,6 +103,12 @@ static int modo;
 static int sair, pediuAbrir, pediuIndice, abrindo, pediuRelogio;
 static float tempo, entrada, focoT;
 
+// Grade de secoes do CinemaBox: a tela de entrada do Explorar. A Biblioteca
+// guarda os favoritos; as secoes (catalogos do manifesto) moram aqui.
+static int secoesModo;
+static CbCatalogo secoes[CB_CAT_MAX];
+static int secoesN, secFoco;
+
 static MapaClimas climas;
 static unsigned climasRev;
 static int clFoco;                    // posicao na grade
@@ -103,6 +116,8 @@ static int clAberto = -1;             // posicao do clima aberto (climas.c[])
 static int caLinha, caCol[2];         // clima aberto: 0 = descobrir, 1 = vistos
 static int caIdx[2][MAPA_CLIMA_ITENS], caN[2];
 static float caRolar[2];
+static void eventoSecoes(SDL_Keycode k);
+static void desenharSecoes(void);
 #ifdef NV_TOUCH_UI
 static ToqueRolagem toqueCl;
 static float clRolar;
@@ -596,6 +611,7 @@ void explorar_evento(const SDL_Event *e) {
   }
   // OK segurado repete o KEYDOWN: so o primeiro toque vale (#187).
   if (ehOk(k) && e->key.repeat) return;
+  if (secoesModo) { eventoSecoes(k); return; }
   if (modo == MODO_CLIMAS) eventoClimas(k);
   else if (modo == MODO_CLIMA) eventoClima(k);
   else eventoViz(k);
@@ -678,6 +694,78 @@ static void desenharTitulo(const char *sub) {
     TxtLinha s = txt_linha_corta(TXT_BODY, sub, 180, 184, 198, 255, EX_DIR - x);
     txt_desenhar(s, x, 128.0f);
   }
+}
+
+// --- secoes do CinemaBox ---------------------------------------------------------
+//
+// A tela de entrada do Explorar lista os catalogos do manifesto. Nada aqui
+// pede rede: cinemabox_catalogos le o manifesto embutido, e OK entrega o
+// catalogo inteiro ao Ver Tudo, que ja pagina e abre o detalhe.
+
+static void abrirSecao(int i) {
+  if (i < 0 || i >= secoesN) return;
+  vertudo_abrir(CINEMABOX_BASE, secoes[i].tipo, secoes[i].id, secoes[i].titulo);
+}
+
+static void eventoSecoes(SDL_Keycode k) {
+  int cols = EX_SEC_COLS, col = secFoco % cols;
+  if (secoesN <= 0) {
+    if (k == SDLK_LEFT) sair = 1;
+    else if (k == SDLK_UP) pediuRelogio = 1;
+    return;
+  }
+  if (k == SDLK_LEFT) { if (col == 0) { sair = 1; return; } secFoco--; }
+  else if (k == SDLK_RIGHT) { if (col < cols - 1 && secFoco + 1 < secoesN) secFoco++; }
+  else if (k == SDLK_UP) {
+    if (secFoco >= cols) secFoco -= cols;
+    else if (ajustes_menu_topo()) sair = 1;
+    else pediuRelogio = 1;
+  }
+  else if (k == SDLK_DOWN) {
+    if (secFoco + cols < secoesN) secFoco += cols;
+    else if ((secFoco / cols) < (secoesN - 1) / cols) secFoco = secoesN - 1;
+  }
+  else if (ehOk(k)) { abrirSecao(secFoco); return; }
+  else return;
+  focoT = 0.0f;
+}
+
+static void ponteiroSecao(int i, int b) {
+  (void)b;
+  if (!secoesModo || i < 0 || i >= secoesN || i == secFoco) return;
+  secFoco = i;
+  focoT = 0.0f;
+}
+
+static void desenharSecoes(void) {
+  float x0 = ajustes_conteudo_x();
+  float w = (EX_DIR - x0 - EX_SEC_GAP * (EX_SEC_COLS - 1)) / EX_SEC_COLS;
+  int i;
+  desenharTitulo(i18n("As seções do CinemaBox"));
+  if (secoesN <= 0) {
+    TxtLinha v = txt_linha(TXT_TITULO3, i18n("O CinemaBox não devolveu seções agora"), 236, 238, 244, 255);
+    txt_desenhar(v, (NV_TELA_W - v.w) * 0.5f, 500.0f);
+    return;
+  }
+  for (i = 0; i < secoesN; i++) {
+    int col = i % EX_SEC_COLS, lin = i / EX_SEC_COLS;
+    float e = ajustes_animacoes_reduzidas() ? 1.0f : suave((entrada - 0.04f * (float)i) / 0.45f);
+    float f = i == secFoco ? focoT : 0.0f;
+    GfxRect r = { x0 + (float)col * (w + EX_SEC_GAP),
+                  EX_CL_TOPO + (float)lin * (EX_SEC_H + EX_SEC_GAP) + 18.0f * (1.0f - e),
+                  w, EX_SEC_H };
+    if (e <= 0.01f) continue;
+    ponteiro_alvo(r.x, r.y, r.w, r.h, ponteiroSecao, NULL, i, 0);
+    if (i == secFoco) r = crescer(r, 0.03f * f);
+    painelComFoco(r, 18.0f / EX_SEC_H, f, e);
+    txt_bloco_corta(TXT_HEADLINE, i18n(secoes[i].titulo), 246, 246, 248,
+                    r.x + 24.0f, r.y + 22.0f, r.w - 48.0f, 40.0f, e, 2);
+    { TxtLinha d = txt_linha_corta(TXT_CAPTION2,
+                    i18n(!strcmp(secoes[i].tipo, "series") ? "Séries" : "Filmes"),
+                    186, 190, 202, 255, r.w - 48.0f);
+      txt_desenhar_alpha(d, r.x + 24.0f, r.y + r.h - 46.0f, e); }
+  }
+  desenharDica(i18n("Setas   Escolher uma seção   ·   OK   Abrir"));
 }
 
 // --- desenho: grade de climas ----------------------------------------------------
@@ -1437,14 +1525,20 @@ void explorar_iniciar(void) {
   clAberto = -1;
   nTrilha = 0;
   origem = ORIGEM_NADA;
+  // A entrada do Explorar sao as secoes do provedor. Os climas (e a toca)
+  // continuam existindo, alcancados pelo circular "Explorar" da pagina do
+  // titulo; aqui so copiamos o retrato, sem pedir nada.
+  secoesModo = 1;
+  secFoco = 0;
+  secoesN = cinemabox_catalogos(secoes, CB_CAT_MAX);
   trocarModo(MODO_CLIMAS);
-  mapa_climas_pedir();
   mapa_climas_copiar(&climas, &climasRev);
 }
 
 void explorar_abrir_titulo(const MapaObra *o) {
   pediuRelogio = 0;
   if (!o || !o->titulo[0]) return;
+  secoesModo = 0;   // a toca do coelho assume a tela
   if (climas.n == 0) { mapa_climas_pedir(); mapa_climas_copiar(&climas, &climasRev); }
   clAberto = -1;
   comecarToca(o, ORIGEM_DETALHE);
@@ -1510,6 +1604,7 @@ void explorar_desenhar(Uint32 agora) {
 #endif
   (void)agora;
   desenharFundo();
+  if (secoesModo) { desenharSecoes(); return; }
   if (modo == MODO_CLIMAS) desenharClimas();
   else if (modo == MODO_CLIMA) desenharClima();
   else desenharViz();

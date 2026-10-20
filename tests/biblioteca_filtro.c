@@ -51,8 +51,9 @@ static void confereFonte(int esperado, int total) {
 }
 static void confere(int esperado) {
   reconstruir();
-  int esperadoSalvos = fonteBib == AJ_SALVOS_LOCAL ? 129 + extraLocal
-                        : (tipo == TIPO_FILME ? 8 : tipo == TIPO_SERIE ? 118 : 126);
+  // Sem conta, a Biblioteca e sempre os salvos LOCAIS — o destino antigo do
+  // "+" nao muda a grade (ver reconstruir()).
+  int esperadoSalvos = 129 + extraLocal;
   int total = modo == MODO_SALVOS ? esperadoSalvos
                                   : (tipo == TIPO_FILME ? 8 : tipo == TIPO_SERIE ? 118 : 126);
   assert(contaModo[MODO_SALVOS] == esperadoSalvos);
@@ -85,17 +86,17 @@ int main(void) {
   salvos_iniciar();
   modo = MODO_SALVOS; tipo = TIPO_TODOS;
 
-  // P1: so a fonte LOCAL/NUVIO recebe os salvos locais. Com Trakt/Simkl
-  // efetivos eles nao entram na aba nem contam, nem no painel de Salvos.
+  // P1: sem conta nao ha Trakt/Simkl. A Biblioteca ignora o destino antigo do
+  // "+" e mostra os salvos LOCAIS; o painel de Salvos ve a lista local inteira.
   fonteBib = AJ_SALVOS_TRAKT;
-  confere(126);
+  confere(129);
+  fonteBib = AJ_SALVOS_SIMKL;
+  confere(129);
+  fonteBib = AJ_SALVOS_LOCAL;
   { SalvosEntrada u[140]; int n = salvos_uniao(u, (int)(sizeof u / sizeof u[0]));
     int locais = 0, k;
     for (k = 0; k < n; k++) if (u[k].local >= 0) locais++;
-    assert(n == 126 && locais == 0 && salvos_n() == 12); } // Hidden here, still persisted.
-  fonteBib = AJ_SALVOS_SIMKL;
-  confere(126);
-  fonteBib = AJ_SALVOS_LOCAL;
+    assert(n == 129 && locais == 12 && salvos_n() == 12); }
 
   ocultar = 0; confere(129);
   ocultar = 1; confere(129);

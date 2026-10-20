@@ -1,7 +1,7 @@
-// Explorar 2.0: climas na entrada e, por titulo, a vizinhanca (pessoa, tema,
-// recomendados, amigos) com uma trilha de onde a pessoa veio. Os dados vem de
-// mapa.c (catalogo local na hora, TMDB num fio, com cache); este modulo so
-// desenha e navega.
+// Explorar: as SECOES do CinemaBox na entrada (os catalogos do manifesto, sem
+// rede) e, pelo circular "Explorar" da pagina do titulo, a toca do coelho
+// (climas e vizinhanca) com uma trilha de onde a pessoa veio. Os dados dos
+// climas vem de mapa.c; este modulo so desenha e navega.
 #ifndef NV_EXPLORAR_H
 #define NV_EXPLORAR_H
 

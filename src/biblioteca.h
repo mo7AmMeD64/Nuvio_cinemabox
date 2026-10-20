@@ -1,9 +1,8 @@
-// Tela Biblioteca: abas no topo e uma grade de posteres embaixo.
+// Tela Biblioteca: os FAVORITOS do aparelho numa grade de cartazes.
 //
 // Ela e a unica tela do app onde o conteudo e um CONJUNTO do usuario, nao uma
-// vitrine editorial. Por isso as abas nao sao decoracao: "Minha Lista" e
-// "Comprados" existem no aparelho como estado de conta e mudam durante o uso,
-// e a tela precisa continuar legivel quando esse conjunto esta vazio.
+// vitrine editorial. Sem conta, o conjunto e a lista local de salvos (o "+" do
+// detalhe); a tela precisa continuar legivel quando ela esta vazia.
 #ifndef NV_BIBLIOTECA_H
 #define NV_BIBLIOTECA_H
 #include <SDL2/SDL.h>

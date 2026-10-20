@@ -86,8 +86,6 @@
 #include "ajustes.h"
 #include "nlanc.h"
 #include "ctxmenu.h"
-#include "cinemabox.h"
-#include "vertudo.h"
 #define NV_TXT_TELA   // NV_TELA_W/H = tela virtual da escala de texto (escala.h)
 #include "escala.h"
 #include "telefoneui.h"
@@ -118,9 +116,6 @@ static int bibTinta2(void) { return 205; }
 #define BIB_FIL_MODO   0
 #define BIB_FIL_PICK   1
 #define BIB_FIL_GRADE  2
-// Unico seletor da Biblioteca: Exibicao. O seletor de Fonte e a busca de
-// listas publicas sairam com o cliente so de CinemaBox (dono, 19/10).
-#define BIB_N_PICKS    1
 #define BIB_MAX_LINHAS (FOCUS_MAX_FILEIRAS - BIB_FIL_GRADE)
 #define BIB_GRADE_BASE (NV_TELA_H - NV_MARGEM_Y)
 // Em quantos px um poster desaparece ao subir por baixo do cabecalho. O recorte
@@ -279,7 +274,7 @@ static int bibTinta2(void) { return 205; }
 // biblioteca da CONTA (sync_pull_library), posta ali por contalib.c.
 // "Coleção" = TENHO, e so o Trakt tem. "Listas" = conjuntos, nao titulos.
 enum { MODO_SALVOS, MODO_NUVEM, MODO_LISTAS, BIB_N_MODOS };
-static const char *ROT_MODO[BIB_N_MODOS] = { "Salvos", "Coleção", "CinemaBox" };
+static const char *ROT_MODO[BIB_N_MODOS] = { "Salvos", "Coleção", "Listas" };
 
 // Seletor "Tipo": os mesmos valores do web.
 enum { TIPO_TODOS, TIPO_FILME, TIPO_SERIE, BIB_N_TIPOS };
@@ -293,7 +288,9 @@ enum { VIS_CARTAZ, VIS_LISTA, BIB_N_VIS };
 static const char *ROT_VIS[BIB_N_VIS] = { "Cartazes", "Lista" };
 // Seletor "Fonte", no modo Listas. "Públicas" e a busca — ela vive na mesma
 // roda porque e mais uma origem de listas, nao um lugar separado.
-enum { FONTE_TRAKT, FONTE_SIMKL, FONTE_NUVIO, FONTE_FIXADAS, FONTE_PUB, FONTE_CINEMABOX, BIB_N_FONTES };
+enum { FONTE_TRAKT, FONTE_SIMKL, FONTE_NUVIO, FONTE_FIXADAS, FONTE_PUB, BIB_N_FONTES };
+static const char *ROT_FONTE[BIB_N_FONTES] =
+  { "Trakt", "Simkl", "Nuvio", "Fixadas", "Públicas" };
 
 // Em que grade o foco esta. Nao e um modo a mais: e o mesmo modo Listas com uma
 // lista aberta por cima.
@@ -305,46 +302,7 @@ static int ordem = ORD_ADICIONADOS;
 static int exibicao = VIS_CARTAZ;
 static int fonte = FONTE_TRAKT;
 static int fonteSalvos = -1; // Shared snapshot for the grid, badge and membership.
-static int pickSel = 0;          // qual dos seletores esta em foco (so Exibicao agora)
-
-// ---------------------------------------------------------------- CinemaBox
-// A Biblioteca e um cliente so de VOD: as "listas" da grade sao as SECOES do
-// CinemaBox (os catalogos declarados no manifesto — sem rede, ver
-// cinemabox_catalogos). Abrir uma secao nao e abrir uma lista aqui: o catalogo
-// inteiro vai para o Ver Tudo, que ja sabe pagina-lo e abrir o detalhe.
-//
-// Salvos/Colecao e as fontes Trakt/Simkl/Nuvio continuam compilados, mas
-// nenhum caminho os escolhe: biblioteca_iniciar forca modo=MODO_LISTAS e
-// fonte=FONTE_CINEMABOX, e nao ha mais seletor de modo/fonte na tela.
-static LstLista secoes[CB_CAT_MAX];
-static int secoesN;
-static int cinemaboxAberto(void) {
-  return modo == MODO_LISTAS && fonte == FONTE_CINEMABOX;
-}
-static const LstLista *listaItem(int i) {
-  if (cinemaboxAberto()) return (i >= 0 && i < secoesN) ? &secoes[i] : NULL;
-  return lst_lista(i);
-}
-static int listaN(void) { return cinemaboxAberto() ? secoesN : lst_n(); }
-static void carregarSecoes(void) {
-  CbCatalogo cat[CB_CAT_MAX];
-  int n = cinemabox_catalogos(cat, CB_CAT_MAX), i;
-  secoesN = 0;
-  for (i = 0; i < n; i++) {
-    LstLista *l = &secoes[secoesN++];
-    memset(l, 0, sizeof *l);
-    snprintf(l->titulo, sizeof l->titulo, "%s", cat[i].titulo);
-    snprintf(l->colId, sizeof l->colId, "%s", cat[i].id);
-    // midia = tipo do catalogo ("movie"/"series"): e o que o Ver Tudo pede.
-    snprintf(l->midia, sizeof l->midia, "%s", cat[i].tipo);
-    // O rotulo de apoio diz o tipo. text.c traduz na hora de desenhar.
-    snprintf(l->autor, sizeof l->autor, "%s",
-             !strcmp(cat[i].tipo, "series") ? "Séries" : "Filmes");
-    l->fonte = LST_FONTE_N;   // nao e lista do Trakt/Simkl/Nuvio
-    l->itens = -1;            // a fonte nao informa contagem
-    l->curtidas = -1;
-  }
-}
+static int pickSel = 0;          // qual dos tres seletores esta em foco
 
 static LstLista aberta;          // lista aberta (EST_ITENS)
 static int  temAberta;
@@ -608,7 +566,7 @@ static int ehSerie(const CatItem *ci) {
 static int contarCelulas(void) {
   int n;
   if (estado() == EST_TITULOS) return nFiltro;
-  if (estado() == EST_LISTAS)  return listaN();
+  if (estado() == EST_LISTAS)  return lst_n();
   n = lst_itens_n();
   return n > LST_ITENS_MAX * 8 ? LST_ITENS_MAX * 8 : n;
 }
@@ -629,7 +587,7 @@ static void remapear(int preservar) {
   linhas = nLinhas();
   if (linhas > FOCUS_MAX_FILEIRAS - ini) linhas = FOCUS_MAX_FILEIRAS - ini;
   if (estado() == EST_ITENS) cols[0] = 3;          // as tres acoes
-  else { cols[BIB_FIL_MODO] = 1; cols[BIB_FIL_PICK] = BIB_N_PICKS; }
+  else { cols[BIB_FIL_MODO] = 1; cols[BIB_FIL_PICK] = 3; }   // so a aba Salvos
   for (r = 0; r < linhas; r++) {
     int resto = nCelulas - r * nc;
     cols[ini + r] = resto > nc ? nc : resto;
@@ -849,22 +807,18 @@ static void reconstruirFonte(int novaFonte) {
 }
 
 static void reconstruir(void) {
-  reconstruirFonte(ajustes_fonte_biblioteca());
+  // Cliente sem conta: os favoritos sao os salvos LOCAIS deste aparelho.
+  reconstruirFonte(AJ_SALVOS_LOCAL);
 }
 
 static void atualizarFonte(void) {
-  int novaFonte = ajustes_fonte_biblioteca();
-  if (novaFonte == fonteSalvos) return;
-  if (modo != MODO_LISTAS) reconstruirFonte(novaFonte);
-  else fonteSalvos = novaFonte;
+  // A fonte de Salvos nao muda mais: nao ha Trakt/Simkl nem ajuste de destino.
+  if (fonteSalvos != AJ_SALVOS_LOCAL) reconstruirFonte(AJ_SALVOS_LOCAL);
 }
 
 // Pede a fonte escolhida ao modulo de listas. Cada uma custa no maximo UM
 // pedido de rede (ver listas.h).
 static void pedirFonte(void) {
-  // Cliente so de CinemaBox: as secoes sao locais (o manifesto), sem um pedido
-  // de rede sequer.
-  if (cinemaboxAberto()) { carregarSecoes(); remapear(0); return; }
   switch (fonte) {
     case FONTE_TRAKT:   lst_pedir(LST_TRAKT); break;
     case FONTE_SIMKL:   lst_pedir(LST_SIMKL); break;
@@ -877,8 +831,7 @@ static void pedirFonte(void) {
 
 static int iniciado;
 void biblioteca_abrir_sessao(void) {
-  fonte = FONTE_CINEMABOX;
-  modo = MODO_LISTAS;
+  fonte = FONTE_TRAKT;
   pedido = -1; sair = 0; pediuRelogio = 0; temAberta = 0; buscaAberta = 0;
   okDesde = 0;
   prefPerfil = -1;
@@ -892,24 +845,16 @@ int biblioteca_iniciar(void) {
   prefPerfil = -1;
   lerPref();
   lst_iniciar();
-  // A Biblioteca mostra so o CinemaBox (dono, 19/10): o modo e a fonte sao
-  // fixos. `lerPref` so guarda a exibicao (cartazes/lista), entao nao ha
-  // preferencia antiga a respeitar aqui.
-  modo = MODO_LISTAS; fonte = FONTE_CINEMABOX;
-  tipo = TIPO_TODOS; ordem = ORD_ADICIONADOS;
+  modo = MODO_SALVOS; tipo = TIPO_TODOS; ordem = ORD_ADICIONADOS;
   pickSel = 0; temAberta = 0; acaoSel = 0; recado[0] = 0; recadoAte = 0.0f;
   buscaAberta = 0;
   memset(animModo, 0, sizeof animModo);
   memset(animPick, 0, sizeof animPick);
   sair = 0; pedido = -1; pediuRelogio = 0;
-  // `reconstruir` aqui e so para o fonteSalvos sair de -1 (o bit usado por
-  // biblioteca_na_lista/detalhe): a grade desta tela nao vem dele.
   reconstruir();
-  carregarSecoes();
-  remapear(0);
   // O foco nasce na barra de modos: quem entra ainda esta escolhendo o recorte.
   foco.fileira = BIB_FIL_MODO;
-  foco.coluna = 0;
+  foco.coluna = modo;
   return 1;
 }
 
@@ -977,14 +922,8 @@ static void fecharAberta(void) {
 }
 
 static void abrirLista(int i) {
-  const LstLista *l = listaItem(i);
+  const LstLista *l = lst_lista(i);
   if (!l) return;
-  // CinemaBox: a secao abre o catalogo inteiro no Ver Tudo, que ja sabe paginar
-  // e abrir o detalhe. Nao ha "lista aberta" dentro da Biblioteca.
-  if (cinemaboxAberto()) {
-    vertudo_abrir(CINEMABOX_BASE, l->midia, l->colId, l->titulo);
-    return;
-  }
   aberta = *l;
   snprintf(abertaMidia, sizeof abertaMidia, "%s",
            l->midia[0] ? l->midia : "MOVIE");
@@ -1039,7 +978,7 @@ static int colunaSobFaixa(void) {
   float cx, passo = passoColuna();
   if (foco.fileira == BIB_FIL_MODO) {
     // Uma aba so: o centro e o dela.
-    cx = hdrX() + BIB_SEG_PAD + larguraModo(MODO_LISTAS) * 0.5f;
+    cx = hdrX() + BIB_SEG_PAD + larguraModo(MODO_SALVOS) * 0.5f;
   } else {
     cx = pickerX(foco.coluna) + pickerLargura(foco.coluna) * 0.5f;
   }
@@ -1104,9 +1043,7 @@ static void okNaCelula(int i) {
 static void menuNaCelula(int i) {
   if (i < 0 || i >= nCelulas) return;
   if (estado() == EST_LISTAS) {
-    // Secao do CinemaBox: sem menu de lista (fixar/levar para a home eram das
-    // listas do Trakt/Nuvio).
-    const LstLista *l = cinemaboxAberto() ? NULL : listaItem(i);
+    const LstLista *l = lst_lista(i);
     if (l) { ctxListaIdx = i; ctx_abrir_lista(l); }
     return;
   }
@@ -1215,7 +1152,7 @@ static void biblioteca_evento_(const SDL_Event *e) {
     if (k == SDLK_RIGHT) { pickSel = 0; foco.fileira = BIB_FIL_PICK; foco.coluna = 0; return; }
     if (k == SDLK_UP && ajustes_menu_topo()) { sair = 1; return; }
     if (k == SDLK_DOWN) { descerDaFaixa(); return; }
-    // OK na aba nao troca de recorte: so existe "CinemaBox".
+    // OK na aba nao troca de recorte: a Biblioteca e so os favoritos.
     return;
   }
 
@@ -1225,12 +1162,31 @@ static void biblioteca_evento_(const SDL_Event *e) {
   // e volta ate a lista.
   if (foco.fileira == BIB_FIL_PICK) {
     if (k == SDLK_UP) { pediuRelogio = 1; return; }
+    if (k == SDLK_RIGHT && pickSel < 2) { pickSel++; foco.coluna = pickSel; return; }
+    if (k == SDLK_LEFT  && pickSel > 0) { pickSel--; foco.coluna = pickSel; return; }
     if (k == SDLK_LEFT)  { foco.fileira = BIB_FIL_MODO; foco.coluna = 0; return; }
     if (k == SDLK_UP && ajustes_menu_topo()) { sair = 1; return; }
     if (k == SDLK_DOWN) { descerDaFaixa(); return; }
     if (k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_SPACE) {
-      // Unico seletor: Exibicao (cartazes/lista).
-      alternarExibicao();
+      if (modo == MODO_LISTAS) {
+        if (pickSel == 0) {
+          fonte = (fonte + 1) % BIB_N_FONTES;
+          pedirFonte();
+        } else if (pickSel == 1) alternarExibicao();
+        else {
+          // O terceiro seletor no modo Listas E a busca publica. Ele abre a
+          // modal de digitacao que o app ja tem (src/teclado.c) em vez de uma
+          // segunda grade de letras — ver a nota no topo daquele arquivo.
+          fonte = FONTE_PUB;
+          buscaAberta = 1;
+          teclado_abrir("Procurar listas públicas",
+                        "Listas de qualquer pessoa no Trakt", TECLADO_MAX);
+        }
+      } else {
+        if (pickSel == 0)      { tipo = (tipo + 1) % BIB_N_TIPOS;   reconstruir(); }
+        else if (pickSel == 1) { ordem = (ordem + 1) % BIB_N_ORD;   reconstruir(); }
+        else                     alternarExibicao();
+      }
       foco.fileira = BIB_FIL_PICK; foco.coluna = pickSel;
     }
     return;
@@ -1519,7 +1475,7 @@ static void txtEsc(TxtLinha l, float x, float y, float esc, float a) {
 // saem do texto. A contagem de Listas so aparece quando o modulo ja tem as
 // listas da fonte; antes disso um "0" seria mentira.
 static void textoModo(int a, char *num, size_t n) {
-  int v = a == MODO_LISTAS ? listaN() : contaModo[a];
+  int v = a == MODO_LISTAS ? lst_n() : contaModo[a];
   num[0] = 0;
   if (a != MODO_LISTAS || v > 0) snprintf(num, n, "%d", v);
 }
@@ -1532,10 +1488,8 @@ static float larguraModo(int a) {
   return bibRetrato() ? fminf(w, hdrW() - BIB_SEG_PAD * 2.0f) : w;   // uma aba so
 }
 static float larguraSeletor(void) {
-  float w = BIB_SEG_PAD * 2.0f;
-  // Uma aba so: "CinemaBox". Ver BIB_N_PICKS.
-  w += larguraModo(MODO_LISTAS);
-  return w;
+  // A Biblioteca e so os favoritos: a aba e unica.
+  return BIB_SEG_PAD * 2.0f + larguraModo(MODO_SALVOS);
 }
 // PONTEIRO (#99). Poe o foco pelas MESMAS variaveis que as setas mexem em
 // biblioteca_evento; o OK do clique chega depois, pelo caminho de sempre (aba
@@ -1553,7 +1507,7 @@ static void ponteiroPicker(int p, int b) {
   toqueLivre = 0;
 #endif
   (void)b;
-  if (estado() == EST_ITENS || p < 0 || p >= BIB_N_PICKS) return;
+  if (estado() == EST_ITENS || p < 0 || p > 2) return;
   pickSel = p; foco.fileira = BIB_FIL_PICK; foco.coluna = p;
 }
 static void ponteiroAcao(int a, int b) {
@@ -1586,7 +1540,7 @@ static void desenhaModos(void) {
     int sel = a == modo, t, tn;
     char num[16];
     TxtLinha l, ln;
-    if (a != MODO_LISTAS) continue;   // a Biblioteca so mostra a aba CinemaBox
+    if (a != MODO_SALVOS) continue;   // favoritos: a Biblioteca nao tem outras abas
     ponteiro_alvo(r.x, r.y, r.w, r.h, ponteiroModo, NULL, a, 0);
     if (sel) {
       if (ajustes_vidro()) gfx_cor(r, 0.5f, 1, 1, 1, .14f * (1.0f - v));
@@ -1627,10 +1581,8 @@ static void desenhaModos(void) {
 
 static void pickerTexto(int p, const char **rot, const char **val) {
   if (modo == MODO_LISTAS) {
-    // Um seletor so: Exibicao. Fonte e listas publicas sairam com o Trakt.
-    (void)p;
-    *rot = "Exibição";
-    *val = ROT_VIS[exibicao];
+    *rot = p == 0 ? "Fonte" : p == 1 ? "Exibição" : "Listas públicas";
+    *val = p == 0 ? ROT_FONTE[fonte] : p == 1 ? ROT_VIS[exibicao] : "Procurar";
   } else {
     *rot = p == 0 ? "Tipo" : p == 1 ? "Ordenar" : "Exibição";
     *val = p == 0 ? ROT_TIPO[tipo] : p == 1 ? ROT_ORD[ordem] : ROT_VIS[exibicao];
@@ -1729,26 +1681,7 @@ static void desenhaAcoes(void) {
 }
 
 // O selo de origem e desenhado em CAIXA ALTA (letter-spacing 4, como no web).
-// "TRAKT" e "LOCAL" ja sao caixa alta em qualquer idioma; "Conta" nao.
-//
-// POR QUE NAO ESCREVER "CONTA" DIRETO. A chave da tabela de traducao e o
-// portugues como ele se escreve, e "Conta" ja esta la (idioma_tab.h -> a
-// "Account"). Um literal "CONTA" seria uma SEGUNDA chave para a mesma palavra,
-// que alguem teria de lembrar de traduzir de novo — e tools/varredura-i18n.py
-// acusa exatamente isso. Traduz primeiro, levanta a caixa depois.
-//
-// A subida e so de a..z: as duas traducoes de hoje sao ASCII, e uma letra
-// acentuada que nao subir fica minuscula em vez de virar outra letra — que e o
-// que aconteceria mexendo em bytes de UTF-8 um a um.
-static const char *seloCaixaAlta(const char *chave) {
-  static char buf[32];
-  const char *s = i18n(chave);
-  size_t k = 0;
-  for (; s[k] && k + 1 < sizeof buf; k++)
-    buf[k] = (s[k] >= 'a' && s[k] <= 'z') ? (char)(s[k] - 'a' + 'A') : s[k];
-  buf[k] = 0;
-  return buf;
-}
+// "TRAKT" e "LOCAL" ja sao caixa alta em qualquer idioma.
 
 // Estado vazio: 46/500 branco e 28/400 rgb(179,179,179), centrado na largura
 // util. Uma grade em branco parece tela quebrada.
@@ -1764,10 +1697,6 @@ static void desenhaVazio(void) {
     else { l1 = "Nada nesta lista";
            l2 = "Uma lista do Trakt vem por tipo: experimente trocar entre Filmes e Séries."; }
   } else if (estado() == EST_LISTAS) {
-    if (cinemaboxAberto()) {
-      l1 = "Nada para mostrar aqui";
-      l2 = "O CinemaBox não devolveu seções agora. Volte e abra a Biblioteca de novo.";
-    } else {
     // O AVISO DA FONTE VEM DO MODULO e diz o que falta (sem conta do Trakt, sem
     // vinculo do Simkl, nada fixado). Uma frase generica aqui esconderia
     // exatamente a informacao que resolve.
@@ -1776,7 +1705,6 @@ static void desenhaVazio(void) {
     else if (av[0])       { l1 = "Nada para mostrar aqui"; l2 = av; }
     else                  { l1 = "Nada para mostrar aqui";
                             l2 = "Escolha outra fonte no seletor acima."; }
-    }
   } else {
     // "Salvos" com o "+" apontado para o Simkl e sem vinculo (issue #110): a
     // aba vazia diz o que falta, e nao "sua proxima sessao comeca aqui".
@@ -2318,9 +2246,11 @@ static void desenhaCabecalho(void) {
   // acompanha meus outros aparelhos?".
   { const char *f =
         temAberta ? rotuloFonte(aberta.fonte)
-      : modo == MODO_LISTAS ? "CINEMABOX"
+      : modo == MODO_LISTAS ? (fonte == FONTE_NUVIO ? "NUVIO"
+                             : fonte == FONTE_SIMKL ? "SIMKL"
+                             : fonte == FONTE_FIXADAS ? "LOCAL"
+                             : "TRAKT")
       : modo == MODO_NUVEM ? (trakt_ativo() ? "TRAKT" : "LOCAL")
-      : fonteSalvos == AJ_SALVOS_LOCAL && contalib_tem_conta() ? seloCaixaAlta("Conta")
       : ajustes_fonte_selo(fonteSalvos);
     // TRAKT SAI COMO LOGO, nao como palavra. As outras origens continuam texto
     // espacado porque nao ha wordmark delas no pacote — "SIMKL" e "NUVIO"
@@ -2363,7 +2293,7 @@ static void desenhaResumo(void) {
              i18n(lst_itens_carregando() ? "Carregando" : "Voltar: lista de listas"));
   } else if (modo == MODO_LISTAS) {
     snprintf(resumo, sizeof resumo, "%d %s", nCelulas,
-             i18n(nCelulas == 1 ? "seção" : "seções"));
+             i18n(nCelulas == 1 ? "lista" : "listas"));
   } else {
     // AS PARTES passam por i18n, e nao a frase pronta: a chave da tabela e o
     // portugues INTEIRO de uma string, e "0 títulos   ·   Sua lista para
@@ -2444,7 +2374,7 @@ static void biblioteca_desenhar_(Uint32 agora) {
     if (temAberta) desenhaAcoes();
     else {
       desenhaModos();
-      for (int p = 0; p < BIB_N_PICKS; p++) desenhaPicker(p, animPick[p]);
+      for (int p = 0; p < 3; p++)           desenhaPicker(p, animPick[p]);
     }
     desenhaResumo();
     ESCALA_MIN_FIM(); }
@@ -2522,7 +2452,7 @@ static void biblioteca_desenhar_(Uint32 agora) {
         ty = topo + (1.0f - entra) * NV_ENTRA_DY;
 
         if (estado() == EST_LISTAS) {
-          const LstLista *l = listaItem(i);
+          const LstLista *l = lst_lista(i);
           if (exibicao == VIS_LISTA) {
             desenhaLinhaLista(l, ty, f, ac);
             if (i == celulaEmFoco()) barraHold((GfxRect){ bibX(), ty, bibW(), BIB_LL_H }, ac);
