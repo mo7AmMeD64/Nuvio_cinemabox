@@ -15,7 +15,7 @@
 // Base do unico addon do app (semeado em addons.c, respondido em rede.c).
 #define CINEMABOX_BASE "cinemabox://cb"
 
-// Uma secao da Biblioteca: um catalogo declarado no manifesto do provedor.
+// Uma secao do Explorar: um catalogo declarado no manifesto do provedor.
 #define CB_CAT_MAX 16
 typedef struct {
   char id[16];

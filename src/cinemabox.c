@@ -349,7 +349,7 @@ static char *cb_catalogo(const char *tipo, const char *id, const char *termo) {
   return cb_catalogo_fileira(id);
 }
 
-// As secoes da Biblioteca, direto do manifesto: sem rede e sem espera. A busca
+// As secoes do Explorar, direto do manifesto: sem rede e sem espera. A busca
 // (`search`) fica de fora — quem busca e a tela de Busca do app.
 int cinemabox_catalogos(CbCatalogo *dst, int max) {
   const char *p = js_array(CB_MANIFESTO, NULL, "catalogs");
